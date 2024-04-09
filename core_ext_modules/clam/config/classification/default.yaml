@@ -2,11 +2,11 @@
 
 defaults:
 - _self_
-- task : task_1_tumor_category_classification
+- task : BTB_tumor_family
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ experiment setting
-exp_code : BT_test # name of the experiment for saving the results
-results_dir : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/classification/outputs # Path to where the results should be saved
+exp_code : BTB_test # name of the experiment for saving the results
+results_dir : /flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs # Path to where the results should be saved
 
 label_frac : 1.0 # Fraction of given training images to use [0, 1]
 seed : 29122009 # For reproducibility
@@ -14,7 +14,7 @@ log_data : False # Set to True to save the logs to TensorBoard
 testing : False # Debugging tool (TODO check the code and see what it does)
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ cross validation settings
-k : 5 # Number of folds to run 
+k : 10 # Number of folds to run 
 k_start : -1 # Sets the number of the fold from where it starts training (-1 means the last one)
 k_end : -1 # Sets the number of the fold from where it ends training (-1 means the first one)
 
@@ -26,7 +26,7 @@ bag_loss : ce # Select between ce (categorical cross-entropy) or svm (support ve
 bag_weight : 0.7 # Weight coefficient for bag-level loss
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ model settings
-encoding_size : 384 # Specify the size of each feature vector. TODO - Make this to be infered when loading the vectors.
+encoding_size : 1024 # Specify the size of each feature vector. TODO - Make this to be infered when loading the vectors.
 model_type : clam_sb # Select the type of classification model to use. Chose between clam_sb (single branch), clam_mb (multi branch), mil
 model_size : small # Size of the model. Chose between small and big. Does not affect the model_type==mil
 drop_out : 0.25 # Specify the drop-out rate [0, 1]

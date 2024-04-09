@@ -232,7 +232,6 @@ def save_for_hipt(cfg, df, repetition_number):
             save_path.mkdir(parents=True, exist_ok=True)
             df_for_save.to_csv(Path(save_path, file_name), index_label=False, index=False)
 
-
 def save_for_clam(cfg, df, repetition_number):
     '''
     See README.md file for a detailed description of how the CLAM framework needs the .csv files saved for training and evaluation (tune).
@@ -278,7 +277,6 @@ def save_for_clam(cfg, df, repetition_number):
         gb = df_for_save.groupby(['label']).agg({'train': 'sum', 'val': 'sum', 'test': 'sum'})
         gb.to_csv(Path(save_path, f'split_{fold}_descriptor.csv'), index_label='class', index=True)
 
-
 def get_label_to_integer_map(unique_labels:list):
     '''
     Returns a dictionary with keys the string for a label and as value an integer.
@@ -291,106 +289,103 @@ def get_label_to_integer_map(unique_labels:list):
     
     return label_to_integer_map
     
-
-# %% LOAD CONFIGURATION (dev)
-        
-cfg = omegaconf.OmegaConf.load('/run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/config/make_csv_for_training.yaml')
-
 # %% MAIN
 
 
-# @hydra.main(
-#     version_base="1.2.0", config_path="config", config_name="make_csv_for_training"
-# )
-# def main(cfg: DictConfig):
+@hydra.main(
+    version_base="1.2.0", config_path="../../configs/csv_file_generation", config_name="make_csv_for_training"
+)
+def main(cfg: DictConfig):
 
 
-# load BT_csv file
-btb_csv = pd.read_csv(cfg.btb_csv_path, encoding="ISO-8859-1")
-# make sure we have bools in USE_DURING_ANALYSIS and ACCEPTABLE_IMAGE_QUALITY columns
-d = {'True': True, 'False': False, 'UNMATCHED_WSI': 'UNMATCHED_WSI'}
-btb_csv['USE_DURING_ANALYSIS'] = btb_csv['USE_DURING_ANALYSIS'].map(d)
-d = {'TRUE': True, 'FALSE': False, 'UNMATCHED_WSI': 'UNMATCHED_WSI', 'UNMATCHED':'UNMATCHED'}
-btb_csv['ACCEPTABLE_IMAGE_QUALITY'] = btb_csv['ACCEPTABLE_IMAGE_QUALITY'].map(d)
+    # load BT_csv file
+    btb_csv = pd.read_csv(cfg.btb_csv_path, encoding="ISO-8859-1")
+    # make sure we have bools in USE_DURING_ANALYSIS and ACCEPTABLE_IMAGE_QUALITY columns
+    d = {'True': True, 'False': False, 'UNMATCHED_WSI': 'UNMATCHED_WSI'}
+    btb_csv['USE_DURING_ANALYSIS'] = btb_csv['USE_DURING_ANALYSIS'].map(d)
+    d = {'TRUE': True, 'FALSE': False, 'UNMATCHED_WSI': 'UNMATCHED_WSI', 'UNMATCHED':'UNMATCHED'}
+    btb_csv['ACCEPTABLE_IMAGE_QUALITY'] = btb_csv['ACCEPTABLE_IMAGE_QUALITY'].map(d)
 
-# include only those that are acceptable for the analysis (USE_DURING_ANALYSIS==True & ACCEPTABLE_IMAGE_QUALITY==True)
-btb_csv = btb_csv.loc[(btb_csv.USE_DURING_ANALYSIS==True) & (btb_csv.ACCEPTABLE_IMAGE_QUALITY==True)]
+    # include only those that are acceptable for the analysis (USE_DURING_ANALYSIS==True & ACCEPTABLE_IMAGE_QUALITY==True)
+    btb_csv = btb_csv.loc[(btb_csv.USE_DURING_ANALYSIS==True) & (btb_csv.ACCEPTABLE_IMAGE_QUALITY==True)]
 
-# remove class_labels or sites from the dataset if requested
-if cfg.classes_to_exclude:
-    btb_csv = btb_csv.loc[~btb_csv[cfg.class_column_name].isin(cfg.classes_to_exclude)]
-if cfg.site_to_exclude:
-    btb_csv = btb_csv.loc[~btb_csv[cfg.site_column_name].isin(cfg.site_to_exclude)]
+    # remove class_labels or sites from the dataset if requested
+    if cfg.classes_to_exclude:
+        btb_csv = btb_csv.loc[~btb_csv[cfg.class_column_name].isin(cfg.classes_to_exclude)]
+    if cfg.site_to_exclude:
+        btb_csv = btb_csv.loc[~btb_csv[cfg.site_column_name].isin(cfg.site_to_exclude)]
 
-# create a new Dataframe with only the ANONYMIZED_CODE, CLASS_LABEL and SITE (if needed).
-# Use the class_column to get the class_label at the right classification level.
-df_for_split = btb_csv[['ANONYMIZED_CODE', cfg.class_column_name]]
-df_for_split = df_for_split.rename(columns={'ANONYMIZED_CODE':'slide_id', cfg.class_column_name:'label'})
+    # create a new Dataframe with only the ANONYMIZED_CODE, CLASS_LABEL and SITE (if needed).
+    # Use the class_column to get the class_label at the right classification level.
+    df_for_split = btb_csv[['ANONYMIZED_CODE', cfg.class_column_name]]
+    df_for_split = df_for_split.rename(columns={'ANONYMIZED_CODE':'slide_id', cfg.class_column_name:'label'})
+    df_for_split = df_for_split.dropna(subset=['label'])
 
-# check if the slide_ids are available as extracted features
-if cfg.check_available_features:
-    slide_ids = list(df_for_split.slide_id.values)
-    feature_check = [os.path.isfile(os.path.join(cfg.feature_dir, sid+'.pt')) for sid in slide_ids]
-    if not all(feature_check):
-        print(f'Not all slide_ids have available feature files.\nFound {feature_check.count(True)}.\nMissing {feature_check.count(False)} out of {len(slide_ids)} ({feature_check.count(False) / len(slide_ids) * 100:0.2f}%).')
+    # check if the slide_ids are available as extracted features
+    if cfg.check_available_features:
+        slide_ids = list(df_for_split.slide_id.values)
+        feature_check = [os.path.isfile(os.path.join(cfg.feature_dir, sid+'.pt')) for sid in slide_ids]
+        if not all(feature_check):
+            print(f'Not all slide_ids have available feature files.\nFound {feature_check.count(True)}.\nMissing {feature_check.count(False)} out of {len(slide_ids)} ({feature_check.count(False) / len(slide_ids) * 100:0.2f}%).')
+        
+        if cfg.skip_missing_features:
+            print(f'ATTENTION! Removing the missing slide_ids (skip_missing_features == {cfg.skip_missing_features})')
+            slide_id_with_features = [slide_ids[i] for i, c in enumerate(feature_check) if c]
+            df_for_split = df_for_split.loc[df_for_split.slide_id.isin(slide_id_with_features)]
+
+
+    # get case_id (subject id) from the anonymized codes (slide_id). This is needed to perform a per-case/subject split
+    df_for_split['case_id'] = df_for_split.apply(lambda x : case_id_from_anonymized_code(x.slide_id), axis=1)
+    # get site_id if site stratification
+    if cfg.site_stratification:
+        df_for_split['site_id'] = df_for_split.apply(lambda x : site_id_from_anonymized_code(x.slide_id), axis=1)
     
-    if cfg.skip_missing_features:
-        print(f'ATTENTION! Removing the missing slide_ids (skip_missing_features == {cfg.skip_missing_features})')
-        slide_id_with_features = [slide_ids[i] for i, c in enumerate(feature_check) if c]
-        df_for_split = df_for_split.loc[df_for_split.slide_id.isin(slide_id_with_features)]
+    # remove (if requested) labels with too few subjects
+    if cfg.min_nbr_subjects_per_class != -1:
+        min_nbr_subjects_per_label = int(cfg.min_nbr_subjects_per_class)
+        labels_to_keep = [l for l in list(pd.unique(df_for_split.label)) if len(pd.unique(df_for_split.loc[df_for_split.label==l].case_id)) >= min_nbr_subjects_per_label]
+        labels_to_remove = [l for l in list(pd.unique(df_for_split.label)) if l not in labels_to_keep]
+        df_for_split = df_for_split.loc[df_for_split.label.isin(labels_to_keep)]
 
-# get case_id (subject id) from the anonymized codes (slide_id). This is needed to perform a per-case/subject split
-df_for_split['case_id'] = df_for_split.apply(lambda x : case_id_from_anonymized_code(x.slide_id), axis=1)
-# get site_id if site stratification
-if cfg.site_stratification:
-    df_for_split['site_id'] = df_for_split.apply(lambda x : site_id_from_anonymized_code(x.slide_id), axis=1)
+        print(f'Removed {len(labels_to_remove)} based on the min nbr. of subject filter ( >= {min_nbr_subjects_per_label}).')
+        print(f'Using {len(labels_to_keep)} labels.')
+    
 
-# map the class string to an integer (starts from 0)
-label_to_integer_map = get_label_to_integer_map(list(pd.unique(df_for_split.label))) 
-df_for_split['label_integer'] = df_for_split.apply(lambda x : label_to_integer_map[x.label], axis=1)
+    # map the class string to an integer (starts from 0)
+    label_to_integer_map = get_label_to_integer_map(list(pd.unique(df_for_split.label))) 
+    df_for_split['label_integer'] = df_for_split.apply(lambda x : label_to_integer_map[x.label], axis=1)
 
-# reset index prior splitting
-df_for_split = df_for_split.reset_index()
+    # reset index prior splitting
+    df_for_split = df_for_split.reset_index()
 
-# start splitting, one split per repetition
-for r in range(cfg.number_of_repetitions):
-    # create split for this repetition
-    df_split = get_repetition_split(cfg, df_for_split, random_seed=cfg.random_seed+r, print_summary=False)
+    print(label_to_integer_map)
 
-    # save in the format of the specified classification framework
-    for f in cfg.framework:
-        if f.lower() == 'hipt':
-            # save using hipt format
-            save_for_hipt(cfg, df_split, repetition_number=r)
-        elif f.lower() == 'clam':
-            # save using clam format
-            save_for_clam(cfg, df_split, repetition_number=r)
-        else:
-            raise ValueError(f'The given framework is not supported. Given {f}. If need support for this framework, see the definition of save_for_hipt of save_for_clam.')
+    # start splitting, one split per repetition
+    for r in range(cfg.number_of_repetitions):
+        # create split for this repetition
+        df_split = get_repetition_split(cfg, df_for_split, random_seed=cfg.random_seed+r, print_summary=False)
 
-    # save the raw dataframe for this repetition. This can be used as dataset_description.csv in CLAM
-    save_path = Path(cfg.output_dir, cfg.experiment_name, 'dataset_summary', f'repetition_{r}')
-    save_path.mkdir(parents=True, exist_ok=True)
-    # re-order columns before saving 
-    col_order = ['case_id', 'slide_id', 'label', 'label_integer', 'site_id']
-    [col_order.append(f'fold_{f+1}') for f in range(cfg.number_of_folds)]
-    df_split= df_split[col_order]
-    df_split.to_csv(Path(save_path, f'dataset_description_repetition_{r}.csv'), index_label=False, index=False)
+        # save in the format of the specified classification framework
+        for f in cfg.framework:
+            if f.lower() == 'hipt':
+                # save using hipt format
+                save_for_hipt(cfg, df_split, repetition_number=r)
+            elif f.lower() == 'clam':
+                # save using clam format
+                save_for_clam(cfg, df_split, repetition_number=r)
+            else:
+                raise ValueError(f'The given framework is not supported. Given {f}. If need support for this framework, see the definition of save_for_hipt of save_for_clam.')
+
+        # save the raw dataframe for this repetition. This can be used as dataset_description.csv in CLAM
+        save_path = Path(cfg.output_dir, cfg.experiment_name, 'dataset_summary', f'repetition_{r}')
+        save_path.mkdir(parents=True, exist_ok=True)
+        # re-order columns before saving 
+        col_order = ['case_id', 'slide_id', 'label', 'label_integer', 'site_id'] if cfg.site_stratification else ['case_id', 'slide_id', 'label', 'label_integer']
+        [col_order.append(f'fold_{f+1}') for f in range(cfg.number_of_folds)]
+        df_split= df_split[col_order]
+        df_split.to_csv(Path(save_path, f'dataset_description_repetition_{r}.csv'), index_label=False, index=False)
 
 
-
-# # save file
-# # # 
-# # run_id = datetime.datetime.now().strftime("%Y-%m-%d_%H_%M")
-# run_id = datetime.datetime.now().strftime("%Y-%m-%d")
-# # make output directory
-# output_dir = Path(cfg.output_dir, cfg.experiment_name, run_id)
-# output_dir.mkdir(parents=True, exist_ok=True)
-
-# hs2p_csv.to_csv(os.path.join(output_dir, 'BTB_for_hs2p.csv'), index_label=False, index=False)
-
-# print(f'BTB_hs2p.csv file saved at {output_dir}')
-
-# if __name__ == '__main__':
-#     main()
+if __name__ == '__main__':
+    main()
 # %%

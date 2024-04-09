@@ -2,5 +2,6 @@
 pre_trained_feature_extractors/
 outputs/
 random_utils_to_justify/
-
+outputs/
+dataset_csv_file
 # files to be ignored

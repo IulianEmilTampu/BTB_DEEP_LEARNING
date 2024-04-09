@@ -1,0 +1,23 @@
+# task configuration for running MIL training within the CLAM framework
+description : 'Family classification' # give a short description of the dataset (Not mandatory, just used for plotting).
+
+data_root_dir : /flush/iulta54/Research/Data/BTB/EXTRACTED_FEATURES/clam_resnet50/BTB_CLAM_fp_feature_extraction/2024-04-03 # Path to where the features are located (this is the path to the experiment_name folder, not the actual feature folder)
+csv_path : /flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs/BTB_csv_for_training/dataset_summary/repetition_0/dataset_description_repetition_0.csv # Path to the dataset_descriptor csv file
+split_dir : /flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs/BTB_csv_for_training/clam/repetition_0 # Path to where the split .csv files for this task are located.
+
+
+n_classes : 9 # NUmber of classes
+subtyping : True # Set to True if this is a sub-typing problem (TODO - check the code for why this is needed).
+
+label_dict : # specify the classes (class to integer)
+  CIRCUMSCRIBED_ASTROCYTIC_GLIOMAS : 0
+  CRANIOPHARYNGIOMAS : 1
+  EPENDYMAL_TUMORS : 2
+  GLIONEURAL_NEURONAL_TUMORS : 3
+  MEDULLOBLASTOMAS_HISTOLOGYCALLY_DEFINED : 4
+  MEDULLOBLASTOMAS_MOLECULARLY_DEFINED : 5 
+  MENINGIOMA : 6
+  OTHER_CNS_EMBRYONAL_TUMORS : 7
+  PEDIATRIC_TYPE_DIFFUSE_HIGH_GRADE_GLIOMAS : 8
+
+ignore : [] # TODO - check code to see what this does
