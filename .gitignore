@@ -1,0 +1,6 @@
+# folders to ignore
+pre_trained_feature_extractors/
+outputs/
+random_utils_to_justify/
+
+# files to be ignored
