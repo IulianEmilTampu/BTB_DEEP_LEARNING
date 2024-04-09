@@ -1,0 +1,10 @@
+h5py
+tqdm
+wandb
+numpy
+pandas
+Pillow
+seaborn
+opencv-python
+wholeslidedata
+hydra-core==1.2.0

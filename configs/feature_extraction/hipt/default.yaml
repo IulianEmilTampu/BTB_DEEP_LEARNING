@@ -1,0 +1,34 @@
+region_dir: '/run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/hs2p/BTB_check_tissue_segmentation/2024-03-31_10_11/patches/4096/jpg'
+
+output_dir: '/run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/features/hipt'
+experiment_name: 'BTB_hipt_features'
+resume: False
+
+slide_list:
+
+region_size: 4096
+patch_size: 256
+mini_patch_size: 16
+
+format: 'jpg'
+level: 'global'
+save_region_features: False
+num_workers: 4
+
+pretrain_vit_patch: '/run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_trained_feature_extractors/vit256_small_dino.pth'
+pretrain_vit_region: '/run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_trained_feature_extractors/vit4k_xs_dino.pth'
+img_size_pretrained:
+
+wandb:
+  enable: False
+  project: 'hipt'
+  username: 'clemsg'
+  exp_name: '${experiment_name}'
+  tags:
+  dir: '/home/user/'
+  group:
+  resume_id:
+
+hydra:
+  run:
+    dir: /tmp/hydra_output

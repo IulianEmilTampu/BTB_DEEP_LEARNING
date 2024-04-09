@@ -1,0 +1,77 @@
+output_dir: '/flush/iulta54/Research/P10-PedHIst/DEMO_DATASET/tcga_brain/heat_maps_hipt_rbd'
+experiment_name: 'test_attention_heatmaps'
+
+patch_fp: # path to (256, 256) input patch
+# patch_fp: 'data/image_256.png'  # path to (256, 256) input patch
+region_fp :
+# region_fp: '/flush/iulta54/Research/P10-PedHIst/DEMO_DATASET/tcga_brain/extracted_mag20x_patch4096_hs2p/test/2024-02-13_15_40/patches/4096/jpg/TCGA-02-0001___0001___Glioblastoma___G4/imgs/12288_28720.jpg' # path to input region
+# region_fp: 'data/image_2k.png'  # path to input region
+
+slide_fp: '/flush/iulta54/Research/P10-PedHIst/DEMO_DATASET/tcga_brain/WSIs/TCGA-02-0001___0001___Glioblastoma___G4.svs' # path to input slide
+segmentation_mask_fp:
+background_pixel_value:
+tissue_pixel_value:
+
+slide_csv: '/flush/iulta54/Research/P10-PedHIst/DEMO_DATASET/tcga_brain/extracted_mag20x_patch4096_hs2p/test/2024-02-13_15_40/process_list.csv' # path to .csv file which contains a 'slide_path' column
+num_workers: 20
+
+level:
+
+region_dir: /flush/iulta54/Research/P10-PedHIst/DEMO_DATASET/tcga_brain/extracted_mag20x_patch4096_hs2p/test/2024-02-13_15_40/patches/4096/jpg # path to folder containing HS2P output (extracted regions)
+region_size: 4096 # if slide_fp is provided, must indicate the size of the regions extracted in region_dir
+
+patch_weights: /flush/iulta54/Research/P10-PedHIst/HIPT/HIPT_4K/Checkpoints/vit256_small_dino.pth # patch-level Transformer weights
+region_weights: /flush/iulta54/Research/P10-PedHIst/HIPT/HIPT_4K/Checkpoints/vit4k_xs_dino.pth # region-level Transformer weights
+img_size_pretrained:
+slide_weights: # slide-level Transformer weights
+
+mask_attn_patch: False
+mask_attn_region: False
+
+display: False  # whether to display the heatmaps of multiple attention heads on a single image
+spacing: 0.5 # when processing a slide, indicate the pixel spacing which the regions were extracted at (in mpp)
+downscale: 1 # how much to downscale the output image by (e.g. downscale=4 will resize 4096x4096 regions to 1024x1024)
+downsample: 32  # uses this value to find the closest downsample level in the WSI for slide-level heatmap visualization
+threshold: 0.5 # threshold attention heatmaps to keep regions with attention scores higher than this value (set to None to not compute thresholded heatmaps)
+granular: True  # whether to compute attention scores using an overlapping stride to obtain more granular heatmaps
+highlight: 0.5 # highlight regions with attention score above this value (similar to threshold, but different visualization) (set to None to turn off highlighting)
+opacity: 0.5  # opacity of non-highlighted regions
+restrict_to_tissue: False # when producing thresholded/highlighted heatmaps, decides to restrict highlighted regions to tissue content only
+font_fp: 'data/arial.ttf' # if display = True, path to font used to display figure titles
+
+# IET 20240213
+smoothing:
+  region : False
+  patch : False
+  offset:
+    region : 128
+    patch : 64
+
+gaussian_smoothing : True
+# END
+
+seg_params:
+  sthresh: 8
+  mthresh: 7
+  close: 10
+  use_otsu: True
+  filter_params:
+    ref_patch_size: 256
+    a_t: 4
+    a_h: 2
+    max_n_holes: 8
+
+wandb:
+  enable: False
+  project: 'hipt'
+  username: 'clemsg'
+  exp_name: '${experiment_name}'
+  tags: ['heatmaps', '${level}', '${region_size}']
+  dir: '/home/user'
+  group:
+  resume_id:
+
+
+hydra:
+  run:
+    dir: /tmp/hydra_output

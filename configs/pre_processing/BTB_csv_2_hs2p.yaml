@@ -1,0 +1,12 @@
+btb_csv_path: '/run/media/iulta54/Expansion/Datasets/BTB/AGGREGATED_CSV_FILES/BTB_AGGREGATED_CLINICAL_AND_WSI_INFORMATION_KS_LK_GOT_UM_LUND_20240405.csv'
+
+WSIs_dir: /run/media/iulta54/Expansion/Datasets/BTB/PER_SITE_WSIs # path to the folder where the per-site WSIs are located.
+
+output_dir: '/run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs' # folder where to save output
+experiment_name: 'BTB_csv_2_hs2p'
+
+skip_not_available_WSI: true # this checks if the WSI paths are existing. This might not be needed if all the slides are known to be available 
+skip_already_processed_WSI : false 
+path_to_processed_WSIs : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/features/hipt/BTB_hipt_features/2024-04-02_13_22/slide_features # path to where the extracted features are located
+
+patch_extraction_config : [] # this is to filter the files that need specific patch extraction settings

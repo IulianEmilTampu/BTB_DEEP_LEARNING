@@ -1,0 +1,14 @@
+data_h5_dir: /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/clam/BTB_CLAM_fp_patch_extraction/2024-04-03
+data_slide_dir: /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/BTB_csv_2_hs2p/2024-03-31/BTB_for_hs2p_default.csv
+feat_dir: /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/features/clam_vit_uni
+csv_path: /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/BTB_csv_2_hs2p/2024-03-31/BTB_for_hs2p_default.csv
+experiment_name: BTB_CLAM_fp_feature_extraction
+resume: true
+auto_skip: true
+stopped_experiment_dir: null
+slide_ext: .ndpi
+target_patch_size: -1
+custom_downsample: 1
+batch_size: 256
+model_type: resnet50
+pre_trained_model_archive: /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_trained_feature_extractors

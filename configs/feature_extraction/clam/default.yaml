@@ -1,0 +1,27 @@
+# Configuration file for extracting features using the CLAM framework.
+
+# Path settings
+data_h5_dir : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/clam/BTB_CLAM_fp_patch_extraction/2024-04-03 # path to the folder containing the .h5 patch coordinate files.
+data_slide_dir : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/BTB_csv_2_hs2p/2024-04-08/BTB_for_hs2p.csv # path to where the slides are located or a .csv file with the file paths. 
+                 # If a .csv file is provided the slide_path column and the slide_id column should be present.
+feat_dir : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/features/clam_resnet50 # path to where the features should be saved
+csv_path : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/BTB_csv_2_hs2p/2024-04-08/BTB_for_hs2p.csv # path to the dataset_descriptor.csv file. This has three columns: case_id, slide:id, label
+
+experiment_name : BTB_CLAM_fp_feature_extraction
+
+# resume if feature extraction stopped
+resume : True
+auto_skip : True # Set to True to skip processing a slide if feature files are already available
+stopped_experiment_dir : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/features/clam_resnet50/BTB_CLAM_fp_feature_extraction/2024-04-03 # path to the stopped experiment 
+
+# other settings
+slide_ext : '.ndpi' # slide file extension
+skip_missing_h5_patches : True # if to skip over a missing .h5 file if flagged by the .csv file for feature extraction
+target_patch_size : -1
+custom_downsample : 1
+batch_size : 256
+
+# feature extraction settings
+model_type : resnet50 # here we can select between resnet50, vit_hipt, vit_uni. If the ViT models are used, specify the folder where the pre-trained models are stored.
+pre_trained_model_archive : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_trained_feature_extractors
+

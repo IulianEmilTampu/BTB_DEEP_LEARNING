@@ -1,0 +1,44 @@
+exp_code: BT_test
+results_dir: /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/classification/outputs
+label_frac: 1.0
+seed: 29122009
+log_data: false
+testing: false
+k: 5
+k_start: -1
+k_end: -1
+lr: 0.0001
+reg: 1.0e-05
+opt: adam
+bag_loss: ce
+bag_weight: 0.7
+encoding_size: 1024
+model_type: clam_sb
+model_size: small
+drop_out: 0.25
+no_inst_cluster: false
+inst_loss: null
+B: 8
+max_epochs: 200
+early_stopping: false
+weighted_sample: false
+patient_strat: false
+shuffle: false
+print_info: false
+skip_missing_slide_ids: false
+task:
+  description: Test dataset
+  data_root_dir: /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/features/clam_vit_hipt/BTB_CLAM_fp_feature_extraction/2024-04-03
+  csv_path: /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/BTB_csv_for_training/dataset_summary/repetition_0/dataset_description_repetition_0.csv
+  split_dir: /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/BTB_csv_for_training/clam/repetition_0
+  n_classes: 7
+  subtyping: true
+  label_dict:
+    CHOROID_PLEXUS_TUMORS: 0
+    CNS_EMBRYONAL_TUMORS: 1
+    GERM_CELL_TUMORS: 2
+    GLIOMAS_GLIONEURAL_NEURONAL_TUMORS: 3
+    MENINGIOMAS: 4
+    PINEAL_REGION_TUMORS: 5
+    TUMORS_OF_THE_STELLAR_REGION: 6
+  ignore: []

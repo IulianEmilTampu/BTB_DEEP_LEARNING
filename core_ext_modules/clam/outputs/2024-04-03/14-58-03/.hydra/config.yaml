@@ -1,0 +1,31 @@
+source: /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/BTB_csv_2_hs2p/2024-03-31/BTB_for_hs2p_default.csv
+save_dir: /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/clam
+experiment_name: BTB_CLAM_fp_patch_extraction
+preset: false
+process_list: false
+patch_level: 0
+custom_downsample: 1
+patch_size: 256
+step_size: 256
+patch: false
+seg: false
+stitch: false
+no_auto_skip: true
+seg_params:
+  seg_level: -1
+  sthresh: 16
+  mthresh: 7
+  close: 4
+  use_otsu: false
+  keep_ids: none
+  exclude_ids: none
+filter_params:
+  a_t: 100
+  a_h: 16
+  max_n_holes: 8
+vis_params:
+  vis_level: -1
+  line_thickness: 250
+patch_params:
+  use_padding: true
+  contour_fn: four_pt

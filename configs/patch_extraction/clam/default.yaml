@@ -1,0 +1,52 @@
+# patch extraction configuration for the CLAM framework
+
+source : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/BTB_csv_2_hs2p/2024-04-08/BTB_for_hs2p.csv # Path to folder containing raw wsi image files or path to a .csv file containing a list of the file paths to perform th patching.
+save_dir : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/clam # directory to save processed data
+experiment_name : BTB_CLAM_fp_patch_extraction
+save_using_anonymized_slide_ids : True # this works in the case source is a .csv file with a column slide_id with the anonymized slide ids, and slide_path with the path for each slide.
+
+preset : False # Predefined profile of default segmentation and filter parameters (.csv)
+process_list : False # name of list of images to process with parameters (.csv)
+
+patch_level : 0 # downsample level at which to patch
+custom_downsample : 1 # Only used on the non fp patching version. Custom downscale when native downsample is not available (only tested w/ 2x downscale). This should be 1 or 2.'
+patch_size : 256 # patch size
+step_size : 256 # step_size
+
+patch : true # Set to True to perform the patching 
+seg : true # Set to True to perform tissue segmentation
+
+stitch : False # Set to True if the patches should be stitched together
+
+# resume
+resume : True # set to True to resume a stopped patch extraction
+stopped_experiment_dir : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/clam/BTB_CLAM_fp_patch_extraction/2024-04-03 # Path to the run from which to resume
+no_auto_skip : True # Set to True to check and skip if a patched slide already exists
+
+# Tissue segmentation setting
+seg_params:
+  seg_level : -1
+  sthresh : 16
+  mthresh : 7
+  close : 4
+  use_otsu : False
+  keep_ids : 'none'
+  exclude_ids : 'none'
+
+filter_params:
+  a_t : 100
+  a_h : 16
+  max_n_holes : 8
+
+# Visualization settings
+vis_params:
+  vis_level: -1
+  line_thickness: 250
+patch_params :
+  # white_thresh : 5
+  # black_thresh : 40
+  use_padding : True
+  contour_fn : four_pt
+
+# what to save
+save_mask : True

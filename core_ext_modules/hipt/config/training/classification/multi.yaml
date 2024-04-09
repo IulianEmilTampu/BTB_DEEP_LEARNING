@@ -1,0 +1,7 @@
+defaults:
+  - single
+  - _self_
+
+data:
+  fold_dir: ''
+  fold_specific_features: False
