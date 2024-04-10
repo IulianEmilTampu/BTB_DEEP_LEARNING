@@ -75,6 +75,17 @@ def check_splits(cfg:DictConfig):
     # if survives until here, the check is passed
     print('Check of split files passed!')
 
+def get_class_weights(dataset):
+    '''
+    Utility that computes the class weights given a Pandas DataFrame
+
+    INPUT
+        dataset : Generic_Split
+    OUTPUT
+        class_weights : list
+            Class weights computed using 
+    '''
+
 # %% MAIN
 
 @hydra.main(
@@ -102,6 +113,7 @@ def main(cfg:DictConfig):
                 'reg': cfg.reg,
                 'label_frac': cfg.label_frac,
                 'bag_loss': cfg.bag_loss,
+                'class_weights':cfg.use_class_weights,
                 'seed': cfg.seed,
                 'model_type': cfg.model_type,
                 'model_size': cfg.model_size,

@@ -10,7 +10,7 @@ results_dir : /flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs # Path to wh
 
 label_frac : 1.0 # Fraction of given training images to use [0, 1]
 seed : 29122009 # For reproducibility
-log_data : False # Set to True to save the logs to TensorBoard
+log_data : True # Set to True to save the logs to TensorBoard
 testing : False # Debugging tool (TODO check the code and see what it does)
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ cross validation settings
@@ -22,7 +22,8 @@ k_end : -1 # Sets the number of the fold from where it ends training (-1 means t
 lr : 0.0001 # Learning rate
 reg : 0.00001 # Weight decay
 opt : adam # Select between adam or sgd optimizer
-bag_loss : ce # Select between ce (categorical cross-entropy) or svm (support vector machine) loss for the slide level classification loss.
+bag_loss : ce # Select between ce (categorical cross-entropy) or svm (support vector machine) loss for the slide level classification.
+use_class_weights : True # if to use a weighted bag loss with weights computed on the training set ()
 bag_weight : 0.7 # Weight coefficient for bag-level loss
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ model settings

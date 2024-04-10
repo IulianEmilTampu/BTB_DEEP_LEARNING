@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from utils.utils import *
 import os
+import sys
 from datasets.dataset_generic import save_splits
 from models.model_mil import MIL_fc, MIL_fc_mc
 from models.model_clam import CLAM_MB, CLAM_SB
@@ -118,8 +119,15 @@ def train(datasets, cur, args):
         if device.type == 'cuda':
             loss_fn = loss_fn.cuda()
     else:
-        loss_fn = nn.CrossEntropyLoss()
+        if args.use_class_weights:
+            class_weights = torch.Tensor(train_split.get_class_weights())
+            print(f'Using weighted CE as bag loss. Class weights: {class_weights}')
+            loss_fn = nn.CrossEntropyLoss(weight=class_weights)
+        else:
+            loss_fn = nn.CrossEntropyLoss()
     print('Done!')
+
+    sys.exit()
     
     print('\nInit Model...', end=' ')
     model_dict = {"dropout": args.drop_out, 'n_classes': args.n_classes, 'feature_encoding_size': args.encoding_size}

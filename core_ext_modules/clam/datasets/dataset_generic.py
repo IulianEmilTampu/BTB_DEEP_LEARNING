@@ -8,6 +8,7 @@ import re
 import pdb
 import pickle
 from scipy import stats
+from sklearn.utils import class_weight
 
 from torch.utils.data import Dataset
 import h5py
@@ -61,6 +62,11 @@ class Generic_WSI_Classification_Dataset(Dataset):
 		if not label_col:
 			label_col = 'label'
 		self.label_col = label_col
+		self.class_weights={
+			'train':[],
+			'val':[],
+			'test':[],
+		}
 
 		slide_data = pd.read_csv(csv_path)
 		slide_data = self.filter_df(slide_data, filter_dict)
@@ -132,6 +138,17 @@ class Generic_WSI_Classification_Dataset(Dataset):
 			df = df[filter_mask]
 		return df
 
+	def get_class_weights(self):
+		'''
+		This works on a the slide_data of a Generic_split class which has the label column for each slide in the dataset. 
+		This can be applied to any split, but only the weights from the training split should be used.
+		'''
+		return class_weight.compute_class_weight(
+                class_weight="balanced",
+                classes=list(pd.unique(self.slide_data.label)),
+                y=list(self.slide_data.label),
+            )
+
 	def __len__(self):
 		if self.patient_strat:
 			return len(self.patient_data['case_id'])
@@ -198,6 +215,8 @@ class Generic_WSI_Classification_Dataset(Dataset):
 			split = None
 		
 		return split
+
+			
 
 	def get_merged_split_from_df(self, all_splits, split_keys=['train']):
 		merged_split = []
