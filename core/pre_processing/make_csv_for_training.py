@@ -10,8 +10,9 @@ import datetime
 import pandas as pd
 
 from pathlib import Path
+import yaml
 import omegaconf
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 from sklearn.model_selection import (
     KFold,
@@ -216,10 +217,6 @@ def save_for_hipt(cfg, df, repetition_number):
     See README.md file for a detailed description of how the HIPT framework needs the .csv files saved for training and evaluation (tune).
     '''
 
-    # make save_path 
-    save_path = Path(cfg.output_dir, cfg.experiment_name, 'hipt', f'repetition_{repetition_number}', f'fold_{fold+1}')
-    save_path.mkdir(parents=True, exist_ok=True)
-
     for fold in range(cfg.number_of_folds):
         for split, file_name in zip(['train', 'validation', 'test'], ['train.csv', 'tune.csv', 'test.csv']):
             # filter dataframe 
@@ -228,9 +225,13 @@ def save_for_hipt(cfg, df, repetition_number):
             df_for_save = df_for_save.rename(columns={'label_integer':'label'})
 
             # save 
-            save_path = Path(cfg.output_dir, cfg.experiment_name, 'hipt', f'repetition_{repetition_number}', f'fold_{fold+1}')
+            save_path = Path(cfg.output_dir, cfg.experiment_name, 'hipt', f'{cfg.classification_level}_reps_{cfg.number_of_repetitions}_folds_{cfg.number_of_folds}', f'repetition_{repetition_number}', f'fold_{fold+1}')
             save_path.mkdir(parents=True, exist_ok=True)
             df_for_save.to_csv(Path(save_path, file_name), index_label=False, index=False)
+    
+    # save cfg to file so that it can be reproduced
+    OmegaConf.save(cfg, Path(cfg.output_dir, cfg.experiment_name, 'hipt', f'{cfg.classification_level}_reps_{cfg.number_of_repetitions}_folds_{cfg.number_of_folds}',"config.yaml"))
+
 
 def save_for_clam(cfg, df, repetition_number):
     '''
@@ -238,7 +239,7 @@ def save_for_clam(cfg, df, repetition_number):
     '''
 
     # make save_path
-    save_path = Path(cfg.output_dir, cfg.experiment_name, 'clam', f'repetition_{repetition_number}')
+    save_path = Path(cfg.output_dir, cfg.experiment_name, 'clam', f'{cfg.classification_level}_reps_{cfg.number_of_repetitions}_folds_{cfg.number_of_folds}', f'repetition_{repetition_number}')
     save_path.mkdir(parents=True, exist_ok=True)
 
     for fold in range(cfg.number_of_folds):
@@ -276,6 +277,9 @@ def save_for_clam(cfg, df, repetition_number):
 
         gb = df_for_save.groupby(['label']).agg({'train': 'sum', 'val': 'sum', 'test': 'sum'})
         gb.to_csv(Path(save_path, f'split_{fold}_descriptor.csv'), index_label='class', index=True)
+    
+    # save cfg to file so that it can be reproduced
+    OmegaConf.save(cfg, Path(cfg.output_dir, cfg.experiment_name, 'clam', f'{cfg.classification_level}_reps_{cfg.number_of_repetitions}_folds_{cfg.number_of_folds}',"config.yaml"))
 
 def get_label_to_integer_map(unique_labels:list):
     '''
@@ -347,7 +351,7 @@ def main(cfg: DictConfig):
         labels_to_remove = [l for l in list(pd.unique(df_for_split.label)) if l not in labels_to_keep]
         df_for_split = df_for_split.loc[df_for_split.label.isin(labels_to_keep)]
 
-        print(f'Removed {len(labels_to_remove)} based on the min nbr. of subject filter ( >= {min_nbr_subjects_per_label}).')
+        print(f'Removed {len(labels_to_remove)} labels based on the min nbr. of subject filter ( >= {min_nbr_subjects_per_label}).')
         print(f'Using {len(labels_to_keep)} labels.')
     
 
@@ -377,13 +381,33 @@ def main(cfg: DictConfig):
                 raise ValueError(f'The given framework is not supported. Given {f}. If need support for this framework, see the definition of save_for_hipt of save_for_clam.')
 
         # save the raw dataframe for this repetition. This can be used as dataset_description.csv in CLAM
-        save_path = Path(cfg.output_dir, cfg.experiment_name, 'dataset_summary', f'repetition_{r}')
+        save_path = Path(cfg.output_dir, cfg.experiment_name, 'dataset_summary')
         save_path.mkdir(parents=True, exist_ok=True)
         # re-order columns before saving 
         col_order = ['case_id', 'slide_id', 'label', 'label_integer', 'site_id'] if cfg.site_stratification else ['case_id', 'slide_id', 'label', 'label_integer']
         [col_order.append(f'fold_{f+1}') for f in range(cfg.number_of_folds)]
         df_split= df_split[col_order]
-        df_split.to_csv(Path(save_path, f'dataset_description_repetition_{r}.csv'), index_label=False, index=False)
+        df_split.to_csv(Path(save_path, f'dataset_description_{cfg.classification_level}_rep_{r}_folds_{cfg.number_of_folds}.csv'), index_label=False, index=False)
+    
+    # save a task .yaml template file (if requested)
+    if cfg.save_classification_task_yaml_template:
+        # build dictionary 
+        classification_task_template = {
+            'description' : cfg.classification_level,
+            'data_root_dir' : '',
+            'csv_path' : '',
+            'split_dir': '',
+            'n_classes':len(label_to_integer_map),
+            'subtyping': True if len(label_to_integer_map) > 2 else False,
+            'label_dict':label_to_integer_map,
+            'ignore' : []
+        }
+        # save 
+        save_path = Path(cfg.output_dir, cfg.experiment_name, 'classification_task_yaml_templates')
+        save_path.mkdir(parents=True, exist_ok=True)
+        
+        with open(os.path.join(save_path, f'{cfg.classification_level}.yaml'), 'w') as outfile:
+            yaml.dump(classification_task_template, outfile, default_flow_style=False)
 
 
 if __name__ == '__main__':

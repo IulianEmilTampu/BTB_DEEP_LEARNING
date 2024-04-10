@@ -2,9 +2,10 @@ btb_csv_path: '/flush/iulta54/Research/P11-BTB_DEEP_LEARNING/dataset_csv_file/BT
 
 output_dir: '/flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs' # folder where to save output
 experiment_name: 'BTB_csv_for_training'
+save_classification_task_yaml_template : True # saves a .yaml file that matches the clam/config/classification/task config files. Will not have the full paths to the .csv files dor the feature directory since these will change based on the computer the code is run on.
 
 # for which framework (hipt, and/or clam)
-framework : [clam]
+framework : [clam, hipt]
 
 # split configurations
 test_fraction : 0.3
