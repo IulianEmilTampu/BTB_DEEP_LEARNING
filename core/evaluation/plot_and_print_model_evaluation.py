@@ -16,8 +16,8 @@ from utils import plotConfusionMatrix, get_performance_metrics, plotROC
 
 # %% PATHS
 
-DATASET_DESCRIPTION_CSV = '/flush/iulta54/Research/P11-BTB_DEEP_LEARNING/dataset_csv_file/BTB_csv_for_training/dataset_summary/dataset_description_tumor_type_rep_0_folds_5.csv'
-OUTPUT_TRAINING_DIR = '/flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs/classification/BTB_tumor_type_clam_vit_hipt_s29122009'
+DATASET_DESCRIPTION_CSV = '/flush/iulta54/Research/P11-BTB_DEEP_LEARNING/dataset_csv_file/BTB_csv_for_training/dataset_summary/dataset_description_tumor_family_rep_0_folds_10.csv'
+OUTPUT_TRAINING_DIR = '/flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs/classification/BTB_tumor_family_clam_vit_hipt_s29122009'
 SAVE_PATH = Path(OUTPUT_TRAINING_DIR, 'summary_evaluation')
 SAVE_PATH.mkdir(parents=True, exist_ok=True)
 
@@ -31,13 +31,13 @@ nbr_folds = len(list(glob.glob(os.path.join(OUTPUT_TRAINING_DIR, '*.pkl'))))
 
 # nbr classes
 nbr_classes = len(pd.unique(dataset_description.label))
-unique_classes = pd.unique(dataset_description.label)
+unique_classes = sorted(list(pd.unique(dataset_description.label)))
+
 
 # label dict
 if 'label_integer' in dataset_description.columns:
     label_dict = dict([(pd.unique(dataset_description.loc[dataset_description.label_integer==i].label)[0], i) for i in range(nbr_classes)])
 else:
-    sorted(unique_classes)
     label_dict = dict([(unique_classes[i], i) for i in range(len(unique_classes))])
 
 # %% EVALUATE EACH SPLIT and SAVE PERFORMANCES  
