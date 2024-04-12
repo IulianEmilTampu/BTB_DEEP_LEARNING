@@ -4,4 +4,5 @@ outputs/
 random_utils_to_justify/
 outputs/
 dataset_csv_file
+core_ext_modules/clam/config/
 # files to be ignored
