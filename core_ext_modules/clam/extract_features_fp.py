@@ -24,6 +24,7 @@ from omegaconf import DictConfig
 import pathlib
 import tqdm
 import pandas as pd
+from functools import partial
 
 
 # UTILITIES
@@ -156,6 +157,7 @@ def main(cfg:DictConfig):
 		# import CONCH ViT pre-trained model (using the conch factory.py utility)
 		from models.conch_open_clip_custom import create_model_from_pretrained
 		model, _ = create_model_from_pretrained(model_cfg='conch_ViT-B-16', checkpoint_path=os.path.join(cfg.pre_trained_model_archive, "vit224_large_conch.bin"), device=device)
+		model.forward = partial(model.encode_image, proj_contrast=False, normalize=False)
 		model = model.to(device)
 
 	if torch.cuda.device_count() > 1:
