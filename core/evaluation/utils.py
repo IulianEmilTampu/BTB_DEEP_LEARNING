@@ -111,6 +111,7 @@ def get_performance_metrics(true_logits, pred_softmax, average="macro"):
         accuracy_score,
         matthews_corrcoef,
         confusion_matrix,
+        balanced_accuracy_score,
     )
 
     """
@@ -170,6 +171,7 @@ def get_performance_metrics(true_logits, pred_softmax, average="macro"):
     recall = np.array(TP / (TP + FN))
     accuracy = np.array((TP + TN) / (TP + TN + FP + FN))
     f1score = np.array(TP / (TP + 0.5 * (FP + FN)))
+    balanced_accuracy = balanced_accuracy_score(np.argmax(true_logits, axis=-1), np.argmax(pred_softmax, axis=-1))
 
     # set to None the class that does not have any positive evidence
     precision[index_class_with_no_positive_evidence] = None
@@ -183,6 +185,7 @@ def get_performance_metrics(true_logits, pred_softmax, average="macro"):
         "accuracy": accuracy,
         "f1-score": f1score,
         "auc": auc(fpr, tpr),
+        "balanced_accuracy" : balanced_accuracy
     }
 
     # compute overall metrics
@@ -424,7 +427,6 @@ def plotROC(GT, PRED, classes, savePath=None, saveName=None, draw=False, figure_
     roc_auc = dict()
     classes = list(np.delete(classes, index_class_with_no_positive_evidence, 0))
     n_classes = len(classes)
-    lw = 2  # line width
 
     # ¤¤¤¤¤¤¤¤¤¤¤ micro-average roc
     for i in range(n_classes):
@@ -500,7 +502,7 @@ def plotROC(GT, PRED, classes, savePath=None, saveName=None, draw=False, figure_
             "".format(classes[i], roc_auc[i]),
         )
 
-    ax.plot([0, 1], [0, 1], "k--", lw=lw)
+    ax.plot([0, 1], [0, 1], "k--", lw=2)
 
     major_ticks = np.arange(0, 1, 0.1)
     minor_ticks = np.arange(0, 1, 0.05)
