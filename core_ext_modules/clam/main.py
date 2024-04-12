@@ -21,7 +21,7 @@ import torch.nn.functional as F
 import pandas as pd
 import numpy as np
 import hydra
-from omegaconf import DictConfig, open_dict
+from omegaconf import DictConfig, open_dict, OmegaConf
 import pathlib
 
 # %% UTILITIES
@@ -157,9 +157,15 @@ def main(cfg:DictConfig):
     check_splits(cfg)
     settings.update({'split_dir': cfg.task.split_dir})
 
-    with open(cfg.results_dir + '/experiment_{}.txt'.format(cfg.exp_code), 'w') as f:
-        print(settings, file=f)
-    f.close()
+
+    # with open(cfg.results_dir + '/experiment_{}.txt'.format(cfg.exp_code), 'w') as f:
+    #     print(settings, file=f)
+    # f.close()
+
+    #  IET 
+    # save experiment as .yaml file instead of .txt
+    with open(os.path.join(cfg.results_dir, f'experiment_{cfg.exp_code}.yaml'), "w") as f:
+        OmegaConf.save(cfg, f)
 
     print("################# Settings ###################")
     for key, val in settings.items():
