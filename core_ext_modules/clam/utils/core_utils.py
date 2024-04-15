@@ -126,8 +126,6 @@ def train(datasets, cur, args):
         else:
             loss_fn = nn.CrossEntropyLoss()
     print('Done!')
-
-    sys.exit()
     
     print('\nInit Model...', end=' ')
     model_dict = {"dropout": args.drop_out, 'n_classes': args.n_classes, 'feature_encoding_size': args.encoding_size}

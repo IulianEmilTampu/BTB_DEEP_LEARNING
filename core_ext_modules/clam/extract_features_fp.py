@@ -167,6 +167,9 @@ def main(cfg:DictConfig):
 	model.eval()
 	total = len(bags_dataset)
 
+	import sys
+	sys.exit()
+
 	skipped_slide_ids = []
 
 	for bag_candidate_idx in range(total):
