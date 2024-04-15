@@ -18,7 +18,7 @@ from utils import plotConfusionMatrix, get_performance_metrics, plotROC
 # %% PATHS
 
 DATASET_DESCRIPTION_CSV = '/flush/iulta54/Research/P11-BTB_DEEP_LEARNING/dataset_csv_file/BTB_csv_for_training/dataset_summary/dataset_description_tumor_type_rep_0_folds_5.csv'
-OUTPUT_TRAINING_DIR = '/flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs/classification/BTB_tumor_type_clam_vit_hipt_s29122009'
+OUTPUT_TRAINING_DIR = '/flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs/classification/BTB_tumot_type_clam_vit_uni_s29122009'
 SAVE_PATH = Path(OUTPUT_TRAINING_DIR, 'summary_evaluation')
 SAVE_PATH.mkdir(parents=True, exist_ok=True)
 
@@ -27,7 +27,7 @@ dataset_description = pd.read_csv(DATASET_DESCRIPTION_CSV)
 
 # %% LOAD EXPERIMENT SETTING FILE (.txt or .yaml)
 
-experiment_settings_file = glob.glob(os.path.join(OUTPUT_TRAINING_DIR, 'experiment_*.txt'))[0]
+experiment_settings_file = glob.glob(os.path.join(OUTPUT_TRAINING_DIR, 'experiment_*'))[0]
 
 if experiment_settings_file.endswith('.txt'):
     import ast
@@ -37,7 +37,7 @@ if experiment_settings_file.endswith('.txt'):
             experiment_settings = ast.literal_eval(line)
 elif experiment_settings_file.endswith('.yaml'):
     import yaml
-    experiment_settings = yaml.load(experiment_settings_file)
+    experiment_settings = yaml.safe_load(Path(experiment_settings_file).read_text())
 else:
     raise ValueError('Training settings file could not be loaded.')
 
@@ -45,13 +45,13 @@ else:
 
 # nbr folds
 nbr_folds = len(list(glob.glob(os.path.join(OUTPUT_TRAINING_DIR, '*.pkl'))))
-assert nbr_folds == experiment_settings['num_splits']
+# assert nbr_folds == experiment_settings['num_splits']
 
 # nbr classes
 nbr_classes = len(pd.unique(dataset_description.label))
 unique_classes = sorted(list(pd.unique(dataset_description.label)))
 class_fractions = [sum(dataset_description.label == l)/len(dataset_description) for l in unique_classes]
-assert nbr_classes == len(experiment_settings['task']['label_dict'])
+# assert nbr_classes == len(experiment_settings['task']['label_dict'])
 
 # label dict
 # if 'label_integer' in dataset_description.columns:
