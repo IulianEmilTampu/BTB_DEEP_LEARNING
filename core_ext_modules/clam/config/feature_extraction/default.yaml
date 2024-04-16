@@ -10,7 +10,7 @@ csv_path : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outp
 experiment_name : BTB_CLAM_fp_feature_extraction
 
 # resume if feature extraction stopped
-resume : True
+resume : False
 auto_skip : True # Set to True to skip processing a slide if feature files are already available
 stopped_experiment_dir : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/features/clam_resnet50/BTB_CLAM_fp_feature_extraction/2024-04-03 # path to the stopped experiment 
 
@@ -22,6 +22,6 @@ custom_downsample : 1
 batch_size : 256
 
 # feature extraction settings
-model_type : resnet50 # here we can select between resnet50, vit_hipt, vit_uni. If the ViT models are used, specify the folder where the pre-trained models are stored.
-pre_trained_model_archive : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_trained_feature_extractors
+model_type : vit_conch # here we can select between resnet50, vit_hipt, vit_uni. If the ViT models are used, specify the folder where the pre-trained models are stored.
+pre_trained_model_archive : /flush/iulta54/Research/P11-BTB_DEEP_LEARNING/pre_trained_feature_extractors
 

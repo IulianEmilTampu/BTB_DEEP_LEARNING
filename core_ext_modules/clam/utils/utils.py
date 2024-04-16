@@ -74,9 +74,18 @@ def get_optim(model, args):
 		optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.reg)
 	elif args.opt == 'sgd':
 		optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, momentum=0.9, weight_decay=args.reg)
+	elif args.opt == 'adamW':
+		optimizer = optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.reg)
 	else:
 		raise NotImplementedError
 	return optimizer
+
+def get_lr_scheduler(optimizer, steps, args):
+	if args.lr_scheduler == 'cosine':
+		scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, steps)
+	else:
+		raise NotImplementedError
+	return scheduler
 
 def print_network(net):
 	num_params = 0

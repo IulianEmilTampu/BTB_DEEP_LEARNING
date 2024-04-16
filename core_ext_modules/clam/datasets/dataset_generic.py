@@ -342,6 +342,10 @@ class Generic_MIL_Dataset(Generic_WSI_Classification_Dataset):
 
 	def load_from_h5(self, toggle):
 		self.use_h5 = toggle
+	
+	def get_feature_emb_dim(self,):
+		feature, _ = self.__getitem__(0)
+		return int(feature.shape[-1])
 
 	def __getitem__(self, idx):
 		slide_id = self.slide_data['slide_id'][idx]

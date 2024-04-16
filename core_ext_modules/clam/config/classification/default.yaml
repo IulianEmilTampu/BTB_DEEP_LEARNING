@@ -5,7 +5,7 @@ defaults:
 - task : BTB_tumor_family
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ experiment setting
-exp_code : BTB_test # name of the experiment for saving the results
+exp_code : ABMIL_DEV # name of the experiment for saving the results
 results_dir : /flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs # Path to where the results should be saved
 
 label_frac : 1.0 # Fraction of given training images to use [0, 1]
@@ -14,22 +14,23 @@ log_data : True # Set to True to save the logs to TensorBoard
 testing : False # Debugging tool (TODO check the code and see what it does)
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ cross validation settings
-k : 10 # Number of folds to run 
+k : 5 # Number of folds to run 
 k_start : -1 # Sets the number of the fold from where it starts training (-1 means the last one)
 k_end : -1 # Sets the number of the fold from where it ends training (-1 means the first one)
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ optimization settings
 lr : 0.0001 # Learning rate
-reg : 0.00001 # Weight decay
-opt : adam # Select between adam or sgd optimizer
+lr_scheduler : 'cosine'
+reg : 0.001 # Weight decay
+opt : adamW # Select between adam or sgd optimizer
 bag_loss : ce # Select between ce (categorical cross-entropy) or svm (support vector machine) loss for the slide level classification.
 use_class_weights : True # if to use a weighted bag loss with weights computed on the training set ()
 bag_weight : 0.7 # Weight coefficient for bag-level loss
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ model settings
-encoding_size : 1024 # Specify the size of each feature vector. TODO - Make this to be infered when loading the vectors.
-model_type : clam_sb # Select the type of classification model to use. Chose between clam_sb (single branch), clam_mb (multi branch), mil
-model_size : small # Size of the model. Chose between small and big. Does not affect the model_type==mil
+encoding_size : null # Specify the size of each feature vector. TODO - Make this to be infered when loading the vectors.
+model_type : abmil # Select the type of classification model to use. Chose between clam_sb (single branch), clam_mb (multi branch), mil
+model_size : null # Size of the model. Chose between small and big. Does not affect the model_type==mil
 drop_out : 0.25 # Specify the drop-out rate [0, 1]
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ CLAM specific settings
@@ -40,7 +41,8 @@ B : 8 # Number of positive/negative patches to sample for clam
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ training settings
 max_epochs : 50 # Max number of epochs
 early_stopping : False # Set to True if early stopping should be set
-weighted_sample : False # Set to True if weighted sampling should be performed
+patience : 20 
+weighted_sample : True # Set to True if weighted sampling should be performed
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ dataset (not task) settings
 patient_strat : False

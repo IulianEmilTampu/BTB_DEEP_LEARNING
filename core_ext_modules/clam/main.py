@@ -100,8 +100,6 @@ def main(cfg:DictConfig):
     seed_torch(cfg.seed)
 
     # parse training and model settings
-    encoding_size = cfg.encoding_size # TODO Make this to be infered when loading the vectors.
-
     settings = {'num_splits': cfg.k, 
                 'k_start': cfg.k_start,
                 'k_end': cfg.k_end,
@@ -145,7 +143,12 @@ def main(cfg:DictConfig):
                             patient_strat= cfg.patient_strat,
                             ignore=cfg.task.ignore)
 
-    if all([cfg.task.n_classes > 2, cfg.model_type in ['clam_sb', 'clam_mb']]):
+    # get feature encoding dimension and add to cfg
+    with open_dict(cfg):
+        cfg.encoding_size = dataset.get_feature_emb_dim()
+
+
+    if all([cfg.task.n_classes > 2, cfg.model_type in ['clam_sb', 'clam_mb', 'abmil']]):
             assert cfg.task.subtyping 
     
     # make folder to where the model training outputs are saved
@@ -157,7 +160,6 @@ def main(cfg:DictConfig):
     check_splits(cfg)
     settings.update({'split_dir': cfg.task.split_dir})
 
-
     # with open(cfg.results_dir + '/experiment_{}.txt'.format(cfg.exp_code), 'w') as f:
     #     print(settings, file=f)
     # f.close()
@@ -166,6 +168,7 @@ def main(cfg:DictConfig):
     # save experiment as .yaml file instead of .txt
     with open(os.path.join(cfg.results_dir, f'experiment_{cfg.exp_code}.yaml'), "w") as f:
         OmegaConf.save(cfg, f)
+    # END
 
     print("################# Settings ###################")
     for key, val in settings.items():

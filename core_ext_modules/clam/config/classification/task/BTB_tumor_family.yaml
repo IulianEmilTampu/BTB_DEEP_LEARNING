@@ -2,9 +2,8 @@
 description : 'Family classification' # give a short description of the dataset (Not mandatory, just used for plotting).
 
 data_root_dir : /flush/iulta54/Research/Data/BTB/EXTRACTED_FEATURES/clam_resnet50/BTB_CLAM_fp_feature_extraction/2024-04-03 # Path to where the features are located (this is the path to the experiment_name folder, not the actual feature folder)
-csv_path : /flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs/BTB_csv_for_training/dataset_summary/repetition_0/dataset_description_repetition_0.csv # Path to the dataset_descriptor csv file
-split_dir : /flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs/BTB_csv_for_training/clam/repetition_0 # Path to where the split .csv files for this task are located.
-
+csv_path : /flush/iulta54/Research/P11-BTB_DEEP_LEARNING/dataset_csv_file/BTB_csv_for_training_min_10s/dataset_summary/dataset_description_tumor_family_rep_0_folds_5.csv # Path to the dataset_descriptor csv file
+split_dir : /flush/iulta54/Research/P11-BTB_DEEP_LEARNING/dataset_csv_file/BTB_csv_for_training_min_10s/clam/tumor_family_reps_1_folds_5/repetition_0 # Path to where the split .csv files for this task are located.
 
 n_classes : 9 # NUmber of classes
 subtyping : True # Set to True if this is a sub-typing problem (TODO - check the code for why this is needed).

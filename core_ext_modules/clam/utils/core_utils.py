@@ -6,6 +6,7 @@ import sys
 from datasets.dataset_generic import save_splits
 from models.model_mil import MIL_fc, MIL_fc_mc
 from models.model_clam import CLAM_MB, CLAM_SB
+from models.model_abmil import ABMIL
 from sklearn.preprocessing import label_binarize
 from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.metrics import auc as calc_auc
@@ -116,8 +117,6 @@ def train(datasets, cur, args):
     if args.bag_loss == 'svm':
         from topk.svm import SmoothTop1SVM
         loss_fn = SmoothTop1SVM(n_classes = args.n_classes)
-        if device.type == 'cuda':
-            loss_fn = loss_fn.cuda()
     else:
         if args.use_class_weights:
             class_weights = torch.Tensor(train_split.get_class_weights())
@@ -125,13 +124,17 @@ def train(datasets, cur, args):
             loss_fn = nn.CrossEntropyLoss(weight=class_weights)
         else:
             loss_fn = nn.CrossEntropyLoss()
+    if device.type == 'cuda':
+            loss_fn = loss_fn.cuda()
     print('Done!')
     
     print('\nInit Model...', end=' ')
     model_dict = {"dropout": args.drop_out, 'n_classes': args.n_classes, 'feature_encoding_size': args.encoding_size}
     
-    if args.model_size is not None and args.model_type != 'mil':
+    if args.model_size is not None and any([args.model_type != 'mil', args.model_type != 'abmil']):
         model_dict.update({"size_arg": args.model_size})
+    else:
+        model_dict.update({"size_arg": None})
     
     if args.model_type in ['clam_sb', 'clam_mb']:
         if args.subtyping:
@@ -155,6 +158,12 @@ def train(datasets, cur, args):
         else:
             raise NotImplementedError
     
+    elif args.model_type == 'abmil':
+        if args.subtyping:
+            model_dict.update({'subtyping': True})
+        
+        model = ABMIL(**model_dict)
+
     else: # args.model_type == 'mil'
         if args.n_classes > 2:
             model = MIL_fc_mc(**model_dict)
@@ -168,16 +177,26 @@ def train(datasets, cur, args):
     print('\nInit optimizer ...', end=' ')
     optimizer = get_optim(model, args)
     print('Done!')
-    
+
+
     print('\nInit Loaders...', end=' ')
     train_loader = get_split_loader(train_split, training=True, testing = args.testing, weighted = args.weighted_sample)
     val_loader = get_split_loader(val_split,  testing = args.testing)
     test_loader = get_split_loader(test_split, testing = args.testing)
+    steps = len(train_loader) * args.max_epochs
     print('Done!')
+
+        # LR scheduler
+    if args.lr_scheduler:
+        print('\nInit LR scheduler ...', end=' ')
+        scheduler = get_lr_scheduler(optimizer,steps, args)
+        print('Done!')
+    else:
+        scheduler = None
 
     print('\nSetup EarlyStopping...', end=' ')
     if args.early_stopping:
-        early_stopping = EarlyStopping(patience = 20, stop_epoch=50, verbose = True)
+        early_stopping = EarlyStopping(patience = args.patience, stop_epoch=args.max_epochs, verbose = True)
 
     else:
         early_stopping = None
@@ -185,12 +204,12 @@ def train(datasets, cur, args):
 
     for epoch in range(args.max_epochs):
         if args.model_type in ['clam_sb', 'clam_mb'] and not args.no_inst_cluster:     
-            train_loop_clam(epoch, model, train_loader, optimizer, args.n_classes, args.bag_weight, writer, loss_fn)
+            train_loop_clam(epoch, model, train_loader, optimizer, args.n_classes, args.bag_weight, writer, loss_fn, scheduler=scheduler)
             stop = validate_clam(cur, epoch, model, val_loader, args.n_classes, 
                 early_stopping, writer, loss_fn, args.results_dir)
         
         else:
-            train_loop(epoch, model, train_loader, optimizer, args.n_classes, writer, loss_fn)
+            train_loop(epoch, model, train_loader, optimizer, args.n_classes, writer, loss_fn, scheduler=scheduler)
             stop = validate(cur, epoch, model, val_loader, args.n_classes, 
                 early_stopping, writer, loss_fn, args.results_dir)
         
@@ -224,7 +243,7 @@ def train(datasets, cur, args):
     return results_dict, test_auc, val_auc, 1-test_error, 1-val_error 
 
 
-def train_loop_clam(epoch, model, loader, optimizer, n_classes, bag_weight, writer = None, loss_fn = None):
+def train_loop_clam(epoch, model, loader, optimizer, n_classes, bag_weight, writer = None, loss_fn = None, scheduler = None):
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.train()
     acc_logger = Accuracy_Logger(n_classes=n_classes)
@@ -234,6 +253,7 @@ def train_loop_clam(epoch, model, loader, optimizer, n_classes, bag_weight, writ
     train_error = 0.
     train_inst_loss = 0.
     inst_count = 0
+    current_lr = optimizer.param_groups[0]['lr']
 
     print('\n')
     for batch_idx, (data, label) in enumerate(loader):
@@ -257,7 +277,7 @@ def train_loop_clam(epoch, model, loader, optimizer, n_classes, bag_weight, writ
 
         train_loss += loss_value
         if (batch_idx + 1) % 20 == 0:
-            print('batch {}, loss: {:.4f}, instance_loss: {:.4f}, weighted_loss: {:.4f}, '.format(batch_idx, loss_value, instance_loss_value, total_loss.item()) + 
+            print('batch {}, loss: {:.4f}, instance_loss: {:.4f}, weighted_loss: {:.4f}, lr: {:.4E}, '.format(batch_idx, loss_value, instance_loss_value, total_loss.item(), current_lr) + 
                 'label: {}, bag_size: {}'.format(label.item(), data.size(0)))
 
         error = calculate_error(Y_hat, label)
@@ -268,6 +288,11 @@ def train_loop_clam(epoch, model, loader, optimizer, n_classes, bag_weight, writ
         # step
         optimizer.step()
         optimizer.zero_grad()
+        if scheduler:
+            scheduler.step()
+            current_lr = scheduler.get_last_lr()[0]
+        else:
+            current_lr = optimizer.param_groups[0]['lr']
 
     # calculate loss and error for epoch
     train_loss /= len(loader)
@@ -280,7 +305,7 @@ def train_loop_clam(epoch, model, loader, optimizer, n_classes, bag_weight, writ
             acc, correct, count = inst_logger.get_summary(i)
             print('class {} clustering acc {}: correct {}/{}'.format(i, acc, correct, count))
 
-    print('Epoch: {}, train_loss: {:.4f}, train_clustering_loss:  {:.4f}, train_error: {:.4f}'.format(epoch, train_loss, train_inst_loss,  train_error))
+    print('Epoch: {}, train_loss: {:.4f}, train_clustering_loss:  {:.4f}, train_error: {:.4f}, lr: {:.4E}, '.format(epoch, train_loss, train_inst_loss,  train_error, current_lr))
     for i in range(n_classes):
         acc, correct, count = acc_logger.get_summary(i)
         print('class {}: acc {}, correct {}/{}'.format(i, acc, correct, count))
@@ -291,13 +316,15 @@ def train_loop_clam(epoch, model, loader, optimizer, n_classes, bag_weight, writ
         writer.add_scalar('train/loss', train_loss, epoch)
         writer.add_scalar('train/error', train_error, epoch)
         writer.add_scalar('train/clustering_loss', train_inst_loss, epoch)
+        writer.add_scalar('train/learning_rate', current_lr, epoch)
 
-def train_loop(epoch, model, loader, optimizer, n_classes, writer = None, loss_fn = None):   
+def train_loop(epoch, model, loader, optimizer, n_classes, writer = None, loss_fn = None, scheduler=None):   
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu") 
     model.train()
     acc_logger = Accuracy_Logger(n_classes=n_classes)
     train_loss = 0.
     train_error = 0.
+    current_lr = optimizer.param_groups[0]['lr']
 
     print('\n')
     for batch_idx, (data, label) in enumerate(loader):
@@ -311,7 +338,7 @@ def train_loop(epoch, model, loader, optimizer, n_classes, writer = None, loss_f
         
         train_loss += loss_value
         if (batch_idx + 1) % 20 == 0:
-            print('batch {}, loss: {:.4f}, label: {}, bag_size: {}'.format(batch_idx, loss_value, label.item(), data.size(0)))
+            print('batch {}, loss: {:.4f}, label: {}, bag_size: {}, lr: {:.4E}, '.format(batch_idx, loss_value, label.item(), data.size(0), current_lr))
            
         error = calculate_error(Y_hat, label)
         train_error += error
@@ -321,6 +348,12 @@ def train_loop(epoch, model, loader, optimizer, n_classes, writer = None, loss_f
         # step
         optimizer.step()
         optimizer.zero_grad()
+        if scheduler:
+            scheduler.step()
+            current_lr = scheduler.get_last_lr()[0]
+
+        else:
+            current_lr = optimizer.param_groups[0]['lr']
 
     # calculate loss and error for epoch
     train_loss /= len(loader)
@@ -336,6 +369,7 @@ def train_loop(epoch, model, loader, optimizer, n_classes, writer = None, loss_f
     if writer:
         writer.add_scalar('train/loss', train_loss, epoch)
         writer.add_scalar('train/error', train_error, epoch)
+        writer.add_scalar('train/learning_rate', current_lr, epoch)
 
    
 def validate(cur, epoch, model, loader, n_classes, early_stopping = None, writer = None, loss_fn = None, results_dir=None):
@@ -370,11 +404,26 @@ def validate(cur, epoch, model, loader, n_classes, early_stopping = None, writer
     val_error /= len(loader)
     val_loss /= len(loader)
 
+    # if n_classes == 2:
+    #     auc = roc_auc_score(labels, prob[:, 1])
+    
+    # else:
+    #     auc = roc_auc_score(labels, prob, multi_class='ovr')
+
     if n_classes == 2:
         auc = roc_auc_score(labels, prob[:, 1])
-    
+        aucs = []
     else:
-        auc = roc_auc_score(labels, prob, multi_class='ovr')
+        aucs = []
+        binary_labels = label_binarize(labels, classes=[i for i in range(n_classes)])
+        for class_idx in range(n_classes):
+            if class_idx in labels:
+                fpr, tpr, _ = roc_curve(binary_labels[:, class_idx], prob[:, class_idx])
+                aucs.append(calc_auc(fpr, tpr))
+            else:
+                aucs.append(float('nan'))
+
+        auc = np.nanmean(np.array(aucs))
     
     
     if writer:
