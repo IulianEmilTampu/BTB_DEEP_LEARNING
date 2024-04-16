@@ -23,12 +23,11 @@ from vis_utils.heatmap_utils import initialize_wsi, drawHeatmap, compute_from_pa
 from wsi_core.wsi_utils import sample_rois
 from utils.file_utils import save_hdf5
 
-parser = argparse.ArgumentParser(description='Heatmap inference script')
-parser.add_argument('--save_exp_code', type=str, default=None,
-					help='experiment code')
-parser.add_argument('--overlap', type=float, default=None)
-parser.add_argument('--config_file', type=str, default="heatmap_config_template.yaml")
-args = parser.parse_args()
+import hydra
+from omegaconf import DictConfig, open_dict
+
+# %% UTILITIES
+
 
 def infer_single_slide(model, features, label, reverse_label_dict, k=1):
 	features = features.to(device)
@@ -71,17 +70,22 @@ def load_params(df_entry, params):
 
 	return params
 
-def parse_config_dict(args, config_dict):
-	if args.save_exp_code is not None:
-		config_dict['exp_arguments']['save_exp_code'] = args.save_exp_code
-	if args.overlap is not None:
-		config_dict['patching_arguments']['overlap'] = args.overlap
-	return config_dict
 
-if __name__ == '__main__':
-	config_path = os.path.join('heatmaps/configs', args.config_file)
-	config_dict = yaml.safe_load(open(config_path, 'r'))
-	config_dict = parse_config_dict(args, config_dict)
+# %% ARGS to be removed
+
+# parser = argparse.ArgumentParser(description='Heatmap inference script')
+# parser.add_argument('--save_exp_code', type=str, default=None,
+# 					help='experiment code')
+# parser.add_argument('--overlap', type=float, default=None)
+# parser.add_argument('--config_file', type=str, default="heatmap_config_template.yaml")
+# args = parser.parse_args()
+
+# %% MAIN
+@hydra.main(
+    version_base="1.2.0", config_path=os.path.join('config', 'heatmaps'), config_name='default'
+)
+
+def main(cfg:DictConfig):
 
 	for key, value in config_dict.items():
 		if isinstance(value, dict):
@@ -99,21 +103,26 @@ if __name__ == '__main__':
 	else:
 		raise NotImplementedError
 
-	args = config_dict
-	patch_args = argparse.Namespace(**args['patching_arguments'])
-	data_args = argparse.Namespace(**args['data_arguments'])
-	model_args = args['model_arguments']
-	model_args.update({'n_classes': args['exp_arguments']['n_classes']})
-	model_args = argparse.Namespace(**model_args)
-	exp_args = argparse.Namespace(**args['exp_arguments'])
-	heatmap_args = argparse.Namespace(**args['heatmap_arguments'])
-	sample_args = argparse.Namespace(**args['sample_arguments'])
+	# patch_args = argparse.Namespace(**args['patching_arguments'])
+	# data_args = argparse.Namespace(**args['data_arguments'])
+	# model_args = args['model_arguments']
+	# model_args.update({'n_classes': args['exp_arguments']['n_classes']})
+	# model_args = argparse.Namespace(**model_args)
+	# exp_args = argparse.Namespace(**args['exp_arguments'])
+	# heatmap_args = argparse.Namespace(**args['heatmap_arguments'])
+	# sample_args = argparse.Namespace(**args['sample_arguments'])
+
+	patch_args = cfg.patching_arguments
+	data_args = cfg.data_arguments
+	model_args = cfg.model_arguments
+	exp_args = cfg.exp_arguments
+	heatmap_args = cfg.heatmap_arguments
+	sample_args = cfg.sample_arguments
 
 	patch_size = tuple([patch_args.patch_size for i in range(2)])
 	step_size = tuple((np.array(patch_size) * (1-patch_args.overlap)).astype(int))
 	print('patch_size: {} x {}, with {:.2f} overlap, step size is {} x {}'.format(patch_size[0], patch_size[1], patch_args.overlap, step_size[0], step_size[1]))
 
-	
 	preset = data_args.preset
 	def_seg_params = {'seg_level': -1, 'sthresh': 15, 'mthresh': 11, 'close': 2, 'use_otsu': False, 
 					  'keep_ids': 'none', 'exclude_ids':'none'}
@@ -147,7 +156,7 @@ if __name__ == '__main__':
 		df = initialize_df(slides, def_seg_params, def_filter_params, def_vis_params, def_patch_params, use_heatmap_args=False)
 		
 	else:
-		df = pd.read_csv(os.path.join('heatmaps/process_lists', data_args.process_list))
+		df = pd.read_csv(data_args.process_list)
 		df = initialize_df(df, def_seg_params, def_filter_params, def_vis_params, def_patch_params, use_heatmap_args=False)
 
 	mask = df['process'] == 1
@@ -431,5 +440,8 @@ if __name__ == '__main__':
 
 	with open(os.path.join(exp_args.raw_save_dir, exp_args.save_exp_code, 'config.yaml'), 'w') as outfile:
 		yaml.dump(config_dict, outfile, default_flow_style=False)
+
+if __name__ == '__main__':
+	main()
 
 

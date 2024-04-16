@@ -2,14 +2,14 @@
 --- 
 exp_arguments:
   # number of classes
-  n_classes: 2
+  n_classes: 4
   # name tag for saving generated figures and assets
-  save_exp_code: HEATMAP_OUTPUT 
+  save_exp_code: BTB_tumor_category_vit_uni 
   # where to save raw asset files
-  raw_save_dir: heatmaps/heatmap_raw_results
+  raw_save_dir: /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/heatmaps
   # where to save final heatmaps
-  production_save_dir: heatmaps/heatmap_production_results
-  batch_size: 384
+  production_save_dir: /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/heatmaps
+  batch_size: 512
 data_arguments: 
   # where is data stored; can be a single str path or a dictionary of key, data_dir mapping
   data_dir: heatmaps/demo/slides/
