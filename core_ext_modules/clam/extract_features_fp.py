@@ -202,10 +202,13 @@ def main(cfg:DictConfig):
 
 		output_path = os.path.join(save_dir, 'h5_files', bag_name)
 		time_start = time.time()
+		print('opening slide...')
 		wsi = openslide.open_slide(slide_file_path)
+		print('Into compute_w_loader')
 		output_file_path = compute_w_loader(h5_file_path, output_path, wsi, 
 		model = model, device=device, batch_size = cfg.batch_size, verbose = 1, print_every = 20, 
 		custom_downsample=cfg.custom_downsample, target_patch_size=cfg.target_patch_size)
+		print('Out compute_w_loader')
 		time_elapsed = time.time() - time_start
 		print('\ncomputing features for {} took {} s'.format(output_file_path, time_elapsed))
 		file = h5py.File(output_file_path, "r")

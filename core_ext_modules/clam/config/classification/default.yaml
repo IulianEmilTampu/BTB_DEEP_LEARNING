@@ -2,11 +2,11 @@
 
 defaults:
 - _self_
-- task : BTB_tumor_family
+- task : 
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ experiment setting
-exp_code : ABMIL_DEV # name of the experiment for saving the results
-results_dir : /flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs # Path to where the results should be saved
+exp_code :  # name of the experiment for saving the results
+results_dir : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs # Path to where the results should be saved
 
 label_frac : 1.0 # Fraction of given training images to use [0, 1]
 seed : 29122009 # For reproducibility
@@ -39,7 +39,7 @@ inst_loss : svm # Instance level clustering loss. Chose between svm, ce, null
 B : 8 # Number of positive/negative patches to sample for clam
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ training settings
-max_epochs : 50 # Max number of epochs
+max_epochs : 20 # Max number of epochs
 early_stopping : False # Set to True if early stopping should be set
 patience : 20 
 weighted_sample : True # Set to True if weighted sampling should be performed

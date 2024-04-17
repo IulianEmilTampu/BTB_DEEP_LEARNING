@@ -17,8 +17,8 @@ from utils import plotConfusionMatrix, get_performance_metrics, plotROC
 
 # %% PATHS
 
-DATASET_DESCRIPTION_CSV = '/flush/iulta54/Research/P11-BTB_DEEP_LEARNING/dataset_csv_file/BTB_csv_for_training/dataset_summary/dataset_description_tumor_type_rep_0_folds_5.csv'
-OUTPUT_TRAINING_DIR = '/flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs/classification/BTB_tumot_type_clam_vit_uni_s29122009'
+DATASET_DESCRIPTION_CSV = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/BTB_csv_for_training/dataset_summary/dataset_description_tumor_category_rep_0_folds_5.csv'
+OUTPUT_TRAINING_DIR = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/BTB_tumor_category_clam_sb_vit_uni_mag_x20_size_224_s29122009'
 SAVE_PATH = Path(OUTPUT_TRAINING_DIR, 'summary_evaluation')
 SAVE_PATH.mkdir(parents=True, exist_ok=True)
 

@@ -8,9 +8,9 @@ save_using_anonymized_slide_ids : True # this works in the case source is a .csv
 preset : False # Predefined profile of default segmentation and filter parameters (.csv)
 process_list : False # name of list of images to process with parameters (.csv)
 
-patch_base_magnification : 20.0 # Specifies the magnification at which the patch_level should be refered to. Eg. patch_base_magnification=20 and patch_level=1, means that the patches are extracted at x20 magnification.
+base_magnification : 20.0 # Specifies the magnification at which the patch_level should be refered to. Eg. patch_base_magnification=20 and patch_level=1, means that the patches are extracted at x20 magnification.
                               # patch_base_magnification=40 and patch_level=2, means that the patches are extracted at x20 magnification (patch_level=1 references to x40 magnification).
-patch_level : 1 # downsample level at which to patch. This is 
+downsample : 1 # downsample level at which to patch refered to the base_magnification.
 custom_downsample : 1 # Only used on the non fp patching version. Custom downscale when native downsample is not available (only tested w/ 2x downscale). This should be 1 or 2.'
 patch_size : 224 # patch size
 step_size : 224 # step_size

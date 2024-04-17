@@ -118,7 +118,6 @@ class Whole_Slide_Bag_FP(Dataset):
 			self.roi_transforms = custom_transforms
 
 		self.file_path = file_path
-
 		with h5py.File(self.file_path, "r") as f:
 			dset = f['coords']
 			self.patch_level = f['coords'].attrs['patch_level']
@@ -141,7 +140,7 @@ class Whole_Slide_Bag_FP(Dataset):
 		for name, value in dset.attrs.items():
 			print(name, value)
 
-		print('\nfeature extraction settings')
+		print('\nfeature extraction settings:')
 		print(f'patch level: {self.patch_level} (ref objective power: {self.getObjectivePower()})')
 		print('target patch size: ', self.target_patch_size if self.target_patch_size else self.patch_size)
 		print('pretrained: ', self.pretrained)

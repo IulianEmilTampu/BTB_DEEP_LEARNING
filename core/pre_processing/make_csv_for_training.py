@@ -249,9 +249,9 @@ def save_for_clam(cfg, df, repetition_number):
         
         # combine and take out each set
         gb = df_for_save.groupby(['set'])
-        train = gb.get_group(('train',)).drop(columns=['set']).rename(columns={'slide_id':'train'}).reset_index()
-        validation = gb.get_group(('validation',)).drop(columns=['set']).rename(columns={'slide_id':'val'}).reset_index()
-        test = gb.get_group(('test',)).drop(columns=['set']).rename(columns={'slide_id':'test'}).reset_index()
+        train = gb.get_group('train').drop(columns=['set']).rename(columns={'slide_id':'train'}).reset_index()
+        validation = gb.get_group('validation').drop(columns=['set']).rename(columns={'slide_id':'val'}).reset_index()
+        test = gb.get_group('test').drop(columns=['set']).rename(columns={'slide_id':'test'}).reset_index()
 
         # concatenate and save
         split_to_save = pd.concat([train, validation, test], axis=1).drop(columns=['index'])

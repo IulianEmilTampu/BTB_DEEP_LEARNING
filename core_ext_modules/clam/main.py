@@ -71,6 +71,7 @@ def check_splits(cfg:DictConfig):
                 feature_check = [os.path.isfile(os.path.join(cfg.task.data_root_dir, 'pt_files', f'{sid}.pt')) for sid in slide_ids]
                 if not all(feature_check):
                     raise ValueError(f'Missing feature files for {feature_check.count(False)} slide_ids for set {c} and split {f}.')
+                    # print(f'Missing feature files for {feature_check.count(False)} slide_ids for set {c} and split {f}.')
     
     # if survives until here, the check is passed
     print('Check of split files passed!')

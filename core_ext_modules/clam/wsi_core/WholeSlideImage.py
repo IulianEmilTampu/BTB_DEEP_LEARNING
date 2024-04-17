@@ -297,10 +297,11 @@ class WholeSlideImage(object):
 
         patch_downsample = (int(self.level_downsamples[patch_level][0]), int(self.level_downsamples[patch_level][1]))
         ref_patch_size = (patch_size*patch_downsample[0], patch_size*patch_downsample[1])
+
         
         step_size_x = step_size * patch_downsample[0]
         step_size_y = step_size * patch_downsample[1]
-        
+
         if isinstance(contour_fn, str):
             if contour_fn == 'four_pt':
                 cont_check_fn = isInContourV3_Easy(contour=cont, patch_size=ref_patch_size[0], center_shift=0.5)
@@ -421,6 +422,12 @@ class WholeSlideImage(object):
         else:
             stop_y = min(start_y+h, img_h-ref_patch_size[1]+1)
             stop_x = min(start_x+w, img_w-ref_patch_size[0]+1)
+        
+        # print(f'process_contour:')
+        # print(f'self.level_downsamples: {self.level_downsamples}')
+        # print(f'Given patch level: {patch_level}')
+        # print(f'Infered patch_downsample: {patch_downsample}')
+        # print(f'ref_patch_size: {ref_patch_size}')
         
         print("Bounding Box:", start_x, start_y, w, h)
         print("Contour Area:", cv2.contourArea(cont))
