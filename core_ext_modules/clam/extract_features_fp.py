@@ -132,7 +132,7 @@ def main(cfg:DictConfig):
 	# load .csv file that contains the file paths. This is to allow the feature extraciton to work 
 	# not just on files in one folder.
 	if os.path.isfile(cfg.data_slide_dir) and os.path.splitext(cfg.data_slide_dir)[1]=='.csv':
-		df_file_paths = pd.read_csv(cfg.data_slide_dir)
+		df_file_paths = pd.read_csv(cfg.data_slide_dir, encoding="ISO-8859-1")
 	# END
 	
 
@@ -166,9 +166,6 @@ def main(cfg:DictConfig):
 	# perform feature extraction
 	model.eval()
 	total = len(bags_dataset)
-
-	import sys
-	sys.exit()
 
 	skipped_slide_ids = []
 

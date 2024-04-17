@@ -7,6 +7,7 @@ import math
 import re
 import pdb
 import pickle
+import openslide
 
 from torch.utils.data import Dataset, DataLoader, sampler
 from torchvision import transforms, utils, models
@@ -141,7 +142,8 @@ class Whole_Slide_Bag_FP(Dataset):
 			print(name, value)
 
 		print('\nfeature extraction settings')
-		print('target patch size: ', self.target_patch_size)
+		print(f'patch level: {self.patch_level} (ref objective power: {self.getObjectivePower()})')
+		print('target patch size: ', self.target_patch_size if self.target_patch_size else self.patch_size)
 		print('pretrained: ', self.pretrained)
 		print('transformations: ', self.roi_transforms)
 
@@ -154,11 +156,18 @@ class Whole_Slide_Bag_FP(Dataset):
 			img = img.resize(self.target_patch_size)
 		img = self.roi_transforms(img).unsqueeze(0)
 		return img, coord
+	
+	def getObjectivePower(self):
+		try:
+			return float(self.wsi.properties[openslide.PROPERTY_NAME_OBJECTIVE_POWER])
+		except:
+			return print('Objective power could not be obtained.')
+
 
 class Dataset_All_Bags(Dataset):
 
 	def __init__(self, csv_path):
-		self.df = pd.read_csv(csv_path)
+		self.df = pd.read_csv(csv_path, encoding="ISO-8859-1")
 	
 	def __len__(self):
 		return len(self.df)
