@@ -45,6 +45,16 @@ class WholeSlideImage(object):
 
     def getOpenSlide(self):
         return self.wsi
+    
+    def getWSIlevels(self):
+        return (self.wsi.level_count, self.wsi.level_downsamples)
+    
+    
+    def getObjectivePower(self,):
+        try:
+            return float(self.wsi.properties[openslide.PROPERTY_NAME_OBJECTIVE_POWER])
+        except:
+            return 'Objective power could not be obtained.'
 
     def initXML(self, xml_path):
         def _createContour(coord_list):

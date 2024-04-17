@@ -56,7 +56,8 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 				  filter_params = {'a_t':100, 'a_h': 16, 'max_n_holes':8}, 
 				  vis_params = {'vis_level': -1, 'line_thickness': 500},
 				  patch_params = {'use_padding': True, 'contour_fn': 'four_pt'},
-				  patch_level = 0,
+				  patch_reference_object_magnification=20.0,
+				  patch_level = 1,
 				  use_default_params = False, 
 				  seg = False, save_mask = True, 
 				  stitch= False, 
@@ -136,6 +137,15 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 		# END
 			
 		WSI_object = WholeSlideImage(full_path)
+
+		# IET 
+		# print levels, downsamples and objective power
+		levels, downsamples = WSI_object.getWSIlevels()
+		objective_power = WSI_object.getObjectivePower()
+		print(f'Available levels: {levels}')
+		print(f'Corresponding downsample factors: {downsamples}')
+		print(f'Objective power: {objective_power}')
+		#  END
 
 		# IET
 		if save_using_anonymized_slide_id:
@@ -231,7 +241,22 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 
 		patch_time_elapsed = -1 # Default time
 		if patch:
-			current_patch_params.update({'patch_level': patch_level, 'patch_size': patch_size, 'step_size': step_size, 
+			# IET 
+			# make sure that the patch level at which patching is performed is the one requested also based on the magnification
+			print(f'Set base magnification: {patch_reference_object_magnification}')
+			if float(patch_reference_object_magnification) != objective_power:
+				# adjust magnification and patch downsample level
+				if float(patch_reference_object_magnification) == 20.0 and objective_power == 40.0:
+					updated_patch_level = patch_level + 1
+				elif float(patch_reference_object_magnification) == 10.0 and objective_power == 40.0:
+					updated_patch_level = patch_level + 2
+				elif patch_reference_object_magnification > objective_power:
+					raise ValueError(f'The set base magnification level is {patch_reference_object_magnification}, but the WSI objective power is {objective_power}.\nCan not perform patching at a lower resolution than the one available.')
+				else:
+					raise NotImplementedError
+			# END
+			print(f'Patching at downsample level {updated_patch_level}.')
+			current_patch_params.update({'patch_level': updated_patch_level, 'patch_size': patch_size, 'step_size': step_size, 
 										 'save_path': patch_save_dir})
 			file_path, patch_time_elapsed = patching(WSI_object = WSI_object,  **current_patch_params,)
 		
@@ -346,8 +371,12 @@ def main(cfg: DictConfig):
 											patch_size = cfg.patch_size, step_size=cfg.step_size, 
 											seg = cfg.seg,  use_default_params=False, save_mask = cfg.save_mask, 
 											stitch= cfg.stitch,
-											patch_level=cfg.patch_level, patch = cfg.patch,
-											process_list = process_list, auto_skip=cfg.no_auto_skip, save_using_anonymized_slide_id=cfg.save_using_anonymized_slide_ids)
+											patch_level=cfg.patch_level, 
+											patch_reference_object_magnification=cfg.patch_base_magnification,
+											patch = cfg.patch,
+											process_list = process_list, 
+											auto_skip=cfg.no_auto_skip, 
+											save_using_anonymized_slide_id=cfg.save_using_anonymized_slide_ids)
 
 if __name__ == '__main__':
 	main()
