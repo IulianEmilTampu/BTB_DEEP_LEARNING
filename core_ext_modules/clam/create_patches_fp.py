@@ -49,6 +49,43 @@ def patching(WSI_object, **kwargs):
 	patch_time_elapsed = time.time() - start_time
 	return file_path, patch_time_elapsed
 
+def get_closest_downsample_level(wsi, base_magnification:float=20.0, downsample:int=1, print_info:bool=True):
+	'''
+	Utility that given a wsi (openslide object), looks at the available levels and their downsample ratios 
+	and finds the one closes to the combination of requested base_magnification and downsample.
+	Eg.
+		wsi objective_magnification=40, base_magnification=20, downsample=2.
+		patch_level_downsample = closet wsi downsamples to objective_magnification / (base_magnification/downsample)
+	'''
+
+	# print levels, downsamples and objective power
+	levels, downsamples = wsi.getWSIlevels()
+	objective_power = wsi.getObjectivePower()
+	if print_info:
+		print(f'Available levels: {levels}')
+		print(f'Corresponding downsample factors: {downsamples}')
+		print(f'Objective power: {objective_power}')
+
+	# update the base_magnification based on the downsample
+	ref_base_magnification = base_magnification / downsample
+
+	# # Compute what is the down sampling that should be performed given the original and the requested base_magnification.
+	# # Use this to find the level at which the slide should be opened at by looking at the downsample of each available level (the closes should be selected).
+
+	downsample_ratio = round(objective_power / ref_base_magnification)
+	# find the closes in the list of downsamples
+	if downsample_ratio < 1:
+		raise ValueError(f'The requested base magnification is higher than the highest available for this slide ({slide}). Objective magnification < requested magnification. {objective_power} < {patch_reference_object_magnification}')
+	else:
+		downsamples_difference = [abs(d - downsample_ratio) for d in downsamples]
+		index_level_downsample = downsamples_difference.index(min(downsamples_difference))
+		# adjust the level at which tp perform the patching
+		if print_info:
+			print(f'Extracting patches at level {index_level_downsample} which has a downsample of {downsamples[index_level_downsample]}')
+	
+	return index_level_downsample
+
+
 def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_dir, 
 				  patch_size = 256, step_size = 256, 
 				  seg_params = {'seg_level': -1, 'sthresh': 8, 'mthresh': 7, 'close': 4, 'use_otsu': False,
@@ -57,7 +94,7 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 				  vis_params = {'vis_level': -1, 'line_thickness': 500},
 				  patch_params = {'use_padding': True, 'contour_fn': 'four_pt'},
 				  patch_reference_object_magnification=20.0,
-				  patch_level = 1,
+				  patch_downsample = None,
 				  use_default_params = False, 
 				  seg = False, save_mask = True, 
 				  stitch= False, 
@@ -128,7 +165,6 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 			continue
 
 		# Inialize WSI
-
 		# IET
 		if os.path.isdir(source):
 			full_path = os.path.join(source, slide)
@@ -137,15 +173,6 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 		# END
 			
 		WSI_object = WholeSlideImage(full_path)
-
-		# IET 
-		# print levels, downsamples and objective power
-		levels, downsamples = WSI_object.getWSIlevels()
-		objective_power = WSI_object.getObjectivePower()
-		print(f'Available levels: {levels}')
-		print(f'Corresponding downsample factors: {downsamples}')
-		print(f'Objective power: {objective_power}')
-		#  END
 
 		# IET
 		if save_using_anonymized_slide_id:
@@ -241,21 +268,8 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 
 		patch_time_elapsed = -1 # Default time
 		if patch:
-			# IET 
-			# make sure that the patch level at which patching is performed is the one requested also based on the magnification
-			print(f'Set base magnification: {patch_reference_object_magnification}')
-			if float(patch_reference_object_magnification) != objective_power:
-				# adjust magnification and patch downsample level
-				if float(patch_reference_object_magnification) == 20.0 and objective_power == 40.0:
-					updated_patch_level = patch_level + 1
-				elif float(patch_reference_object_magnification) == 10.0 and objective_power == 40.0:
-					updated_patch_level = patch_level + 2
-				elif patch_reference_object_magnification > objective_power:
-					raise ValueError(f'The set base magnification level is {patch_reference_object_magnification}, but the WSI objective power is {objective_power}.\nCan not perform patching at a lower resolution than the one available.')
-				else:
-					raise NotImplementedError
-			# END
-			print(f'Patching at downsample level {updated_patch_level}.')
+			# update level at which to perform the patching 
+			updated_patch_level = get_closest_downsample_level(WSI_object, patch_reference_object_magnification, )
 			current_patch_params.update({'patch_level': updated_patch_level, 'patch_size': patch_size, 'step_size': step_size, 
 										 'save_path': patch_save_dir})
 			file_path, patch_time_elapsed = patching(WSI_object = WSI_object,  **current_patch_params,)
@@ -370,10 +384,10 @@ def main(cfg: DictConfig):
 	seg_times, patch_times = seg_and_patch(**directories, **parameters,
 											patch_size = cfg.patch_size, step_size=cfg.step_size, 
 											seg = cfg.seg,  use_default_params=False, save_mask = cfg.save_mask, 
-											stitch= cfg.stitch,
-											patch_level=cfg.patch_level, 
-											patch_reference_object_magnification=cfg.patch_base_magnification,
+											stitch= cfg.stitch, 
 											patch = cfg.patch,
+											patch_reference_object_magnification=cfg.base_magnification,
+											patch_downsample = cfg.downsample,
 											process_list = process_list, 
 											auto_skip=cfg.no_auto_skip, 
 											save_using_anonymized_slide_id=cfg.save_using_anonymized_slide_ids)
