@@ -35,7 +35,7 @@ drop_out : 0.25 # Specify the drop-out rate [0, 1]
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ CLAM specific settings
 no_inst_cluster : False # Disable the instance-level clustering
-inst_loss : null # Instance level clustering loss. Chose between svm, ce, null
+inst_loss : svm # Instance level clustering loss. Chose between svm, ce, null
 B : 8 # Number of positive/negative patches to sample for clam
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ training settings
