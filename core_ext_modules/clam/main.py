@@ -5,6 +5,7 @@ import pdb
 import os
 import sys
 import math
+from datetime import datetime
 
 # internal imports
 from utils.file_utils import save_pkl, load_pkl
@@ -76,16 +77,32 @@ def check_splits(cfg:DictConfig):
     # if survives until here, the check is passed
     print('Check of split files passed!')
 
-def get_class_weights(dataset):
+def build_experiment_name(cfg):
+    ''' 
+    Utility that creates the name of the folder where the experiment is saved.
+    The experiment folder name should provide enough information to be able to identify easily the experiment. 
+    It includes the type of classification, the extracted features and the patch size, the aggregation method, the learning rate, optimizer, type of instance and clustering loss.
     '''
-    Utility that computes the class weights given a Pandas DataFrame
+    
+    # Get needed information from the cfg file
+    classification_task = cfg.task.description
+    classification_task = classification_task.replace(' ', '_').lower()
+    classification_version = cfg.task.version
+    features = cfg.feature_extractor
+    magnification = f'mag_{cfg.magnification}'
+    patch_size = f'ps_{cfg.patch_size}'
+    aggregator = f'agg_{cfg.model_type}'
+    lr = f'lr_{cfg.lr:.0E}'
+    scheduler = f'sch_{cfg.lr_scheduler}'
+    opt = f'opt_{cfg.opt}'
+    bag_loss = f'bgl_{cfg.bag_loss}_{cfg.bag_weight:.0E}'
+    clustering = f'cls_{not cfg.no_inst_cluster}_{cfg.inst_loss}_{cfg.B}'
+    time_stamp = datetime.now().strftime("%Y%m%d_t%H%M%S")
+    # build name
+    return '_'.join([classification_task, classification_version, features, magnification, patch_size, aggregator, lr, scheduler, opt, bag_loss, clustering, time_stamp])
 
-    INPUT
-        dataset : Generic_Split
-    OUTPUT
-        class_weights : list
-            Class weights computed using 
-    '''
+    
+
 
 # %% MAIN
 
@@ -99,6 +116,9 @@ def main(cfg:DictConfig):
 
     # # seed everything
     seed_torch(cfg.seed)
+
+    # get experiment name 
+    experiment_name = build_experiment_name(cfg)
 
     # parse training and model settings
     settings = {'num_splits': cfg.k, 
@@ -153,7 +173,7 @@ def main(cfg:DictConfig):
             assert cfg.task.subtyping 
     
     # make folder to where the model training outputs are saved
-    cfg.results_dir = os.path.join(cfg.results_dir, str(cfg.exp_code) + '_s{}'.format(cfg.seed))
+    cfg.results_dir = os.path.join(cfg.results_dir, experiment_name)
     if not os.path.isdir(cfg.results_dir):
         pathlib.Path(cfg.results_dir).mkdir(parents=True, exist_ok=False)
 
