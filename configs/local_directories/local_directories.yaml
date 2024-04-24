@@ -1,0 +1,59 @@
+# This configuration file sets the local path to the features folders, the dataset .csv file folders, and other 
+# folders used during the experiment.
+# Below you can find the description of how the feature, the dataset_descriptor folders are structured
+
+# ############## feature directory ################
+# ./feature_directory:
+    # |- clam_features_mag_x40_size_256
+    # |- clam_features_mag_x20_size_256
+    # |- clam_features_mag_x20_size_224
+    #     |- resnet50
+    #     |- vit_hipt
+    #     |- vit_uni
+    #     |- vit_conch
+    #         |- h5_files
+    #         |- pt_files
+#
+# By using this structure, one can easily specify the type of features, the magnification the patch size and the model extracting the features
+# when setting up the model for training.
+
+# ##############################
+
+
+# ############## dataset descriptors ################
+# ./dataset_csv_files:
+    # |- 10_folds
+    # |- 5_folds (subfolder with classification levels)
+    #     |- tumor_category
+    #     |- tumor_family
+    #     |- tumor_type (subfolder with classification sublevels)
+    #         |- CNE
+    #         |- BRAF
+    #         |- all
+    #             |- dataset_descriptor.csv
+    #             |- task_template.yaml
+    #             |- clam
+    #                 |- repetition_0
+    #                 |- repetition_1
+    #                     |- split_0_bool.csv
+    #                     |- split_0_descriptor.csv
+    #                     |- split_0.csv
+    #             |-hipt
+    #                 |- repetition_0
+    #                 |- repetition_1
+    #                     |-fold_1
+    #                     |-fold_2     
+    #                     |-fold_3
+    #                     |-fold_4
+    #                     |-fold_5
+    #                         |- test.csv
+    #                         |- train.csv
+    #                         |- val.csv
+# 
+# By using this structure, one can easily specify the type of features, the magnification the patch size and the model extracting the features
+# when setting up the model for training.
+
+# ##############################
+
+feature_directory : '/local/data2/iulta54/Data/BTB/histology_features'
+dataset_csv_files : '/local/data2/iulta54/Data/BTB/experiments_csv_files'
