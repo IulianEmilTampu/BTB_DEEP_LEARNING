@@ -48,7 +48,7 @@ class Accuracy_Logger(object):
 
 class EarlyStopping:
     """Early stops the training if validation loss doesn't improve after a given patience."""
-    def __init__(self, patience=20, stop_epoch=50, verbose=False):
+    def __init__(self, min_epochs:int=10, patience:int=5, stop_epoch:int=20, verbose=False):
         """
         Args:
             patience (int): How long to wait after last time validation loss improved.
@@ -57,6 +57,7 @@ class EarlyStopping:
             verbose (bool): If True, prints a message for each validation loss improvement. 
                             Default: False
         """
+        self.min_epochs = min_epochs
         self.patience = patience
         self.stop_epoch = stop_epoch
         self.verbose = verbose
@@ -67,20 +68,21 @@ class EarlyStopping:
 
     def __call__(self, epoch, val_loss, model, ckpt_name = 'checkpoint.pt'):
 
-        score = -val_loss
+        if epoch > self.min_epochs:
+            score = -val_loss
 
-        if self.best_score is None:
-            self.best_score = score
-            self.save_checkpoint(val_loss, model, ckpt_name)
-        elif score < self.best_score:
-            self.counter += 1
-            print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
-            if self.counter >= self.patience and epoch > self.stop_epoch:
-                self.early_stop = True
-        else:
-            self.best_score = score
-            self.save_checkpoint(val_loss, model, ckpt_name)
-            self.counter = 0
+            if self.best_score is None:
+                self.best_score = score
+                self.save_checkpoint(val_loss, model, ckpt_name)
+            elif score < self.best_score:
+                self.counter += 1
+                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+                if self.counter >= self.patience and epoch > self.stop_epoch:
+                    self.early_stop = True
+            else:
+                self.best_score = score
+                self.save_checkpoint(val_loss, model, ckpt_name)
+                self.counter = 0
 
     def save_checkpoint(self, val_loss, model, ckpt_name):
         '''Saves model when validation loss decrease.'''
@@ -183,7 +185,7 @@ def train(datasets, cur, args):
     train_loader = get_split_loader(train_split, training=True, testing = args.testing, weighted = args.weighted_sample)
     val_loader = get_split_loader(val_split,  testing = args.testing)
     test_loader = get_split_loader(test_split, testing = args.testing)
-    steps = len(train_loader) * args.max_epochs
+    steps = len(train_loader) * (args.max_epochs+1) # this is for the lr scheduler
     print('Done!')
 
         # LR scheduler

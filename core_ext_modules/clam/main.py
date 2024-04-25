@@ -97,13 +97,11 @@ def build_experiment_name(cfg):
     opt = f'opt_{cfg.opt}'
     bag_loss = f'bgl_{cfg.bag_loss}_{cfg.bag_weight:.0E}'
     clustering = f'cls_{not cfg.no_inst_cluster}_{cfg.inst_loss}_{cfg.B}'
-    time_stamp = datetime.now().strftime("%Y%m%d_t%H%M%S")
+    time_stamp = datetime.now().strftime("t%H%M%S")
     # build name
     return '_'.join([classification_task, classification_version, features, magnification, patch_size, aggregator, lr, scheduler, opt, bag_loss, clustering, time_stamp])
 
     
-
-
 # %% MAIN
 
 @hydra.main(
@@ -173,7 +171,7 @@ def main(cfg:DictConfig):
             assert cfg.task.subtyping 
     
     # make folder to where the model training outputs are saved
-    cfg.results_dir = os.path.join(cfg.results_dir, experiment_name)
+    cfg.results_dir = os.path.join(cfg.results_dir, datetime.now().strftime("%Y_%m_%d"), experiment_name)
     if not os.path.isdir(cfg.results_dir):
         pathlib.Path(cfg.results_dir).mkdir(parents=True, exist_ok=False)
 
@@ -187,7 +185,7 @@ def main(cfg:DictConfig):
 
     #  IET 
     # save experiment as .yaml file instead of .txt
-    with open(os.path.join(cfg.results_dir, f'experiment_{cfg.exp_code}.yaml'), "w") as f:
+    with open(os.path.join(cfg.results_dir, f'hydra_config.yaml'), "w") as f:
         OmegaConf.save(cfg, f)
     # END
 
