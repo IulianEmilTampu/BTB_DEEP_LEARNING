@@ -297,7 +297,7 @@ def get_label_to_integer_map(unique_labels:list):
 
 
 @hydra.main(
-    version_base="1.2.0", config_path="../../configs/csv_file_generation", config_name="make_csv_for_training"
+    version_base="1.2.0", config_path="../../configs/pre_processing", config_name="make_csv_for_training"
 )
 def main(cfg: DictConfig):
 
@@ -324,6 +324,8 @@ def main(cfg: DictConfig):
     df_for_split = btb_csv[['ANONYMIZED_CODE', cfg.class_column_name]]
     df_for_split = df_for_split.rename(columns={'ANONYMIZED_CODE':'slide_id', cfg.class_column_name:'label'})
     df_for_split = df_for_split.dropna(subset=['label'])
+
+    print(df_for_split)
 
     # check if the slide_ids are available as extracted features
     if cfg.check_available_features:
@@ -354,7 +356,6 @@ def main(cfg: DictConfig):
         print(f'Removed {len(labels_to_remove)} labels based on the min nbr. of subject filter ( >= {min_nbr_subjects_per_label}).')
         print(f'Using {len(labels_to_keep)} labels.')
     
-
     # map the class string to an integer (starts from 0)
     label_to_integer_map = get_label_to_integer_map(list(pd.unique(df_for_split.label))) 
     df_for_split['label_integer'] = df_for_split.apply(lambda x : label_to_integer_map[x.label], axis=1)
@@ -381,14 +382,15 @@ def main(cfg: DictConfig):
                 raise ValueError(f'The given framework is not supported. Given {f}. If need support for this framework, see the definition of save_for_hipt of save_for_clam.')
 
         # save the raw dataframe for this repetition. This can be used as dataset_description.csv in CLAM
-        save_path = Path(cfg.output_dir, cfg.experiment_name, 'dataset_summary')
+        # save_path = Path(cfg.output_dir, cfg.experiment_name, 'dataset_summary')
         save_path.mkdir(parents=True, exist_ok=True)
         # re-order columns before saving 
         col_order = ['case_id', 'slide_id', 'label', 'label_integer', 'site_id'] if cfg.site_stratification else ['case_id', 'slide_id', 'label', 'label_integer']
         [col_order.append(f'fold_{f+1}') for f in range(cfg.number_of_folds)]
         df_split= df_split[col_order]
-        df_split.to_csv(Path(save_path, f'dataset_description_{cfg.classification_level}_rep_{r}_folds_{cfg.number_of_folds}.csv'), index_label=False, index=False)
-    
+        # df_split.to_csv(Path(save_path, f'dataset_description_{cfg.classification_level}_rep_{r}_folds_{cfg.number_of_folds}.csv'), index_label=False, index=False)
+        df_split.to_csv(Path(save_path, f'dataset_descriptor.csv'), index_label=False, index=False)
+
     # save a task .yaml template file (if requested)
     if cfg.save_classification_task_yaml_template:
         # build dictionary 
