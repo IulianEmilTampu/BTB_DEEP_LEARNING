@@ -189,3 +189,17 @@ for d in ('TUMOR_CATEGORY', 'TUMOR_FAMILY', 'TUMOR_TYPE'):
 #                                                                                                                                              'GLASS_ID_CLINICAL_TUMOR_TYPE_COUNT': lambda x : max(x),
 #                                                                                                                                              })
 # print(tumor_category_family_type_aggregation)
+
+# %% PRINT THOSE THAT HAVE EXTRACTED FEATURES
+
+PATH_TO_PATCHES = '/run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/clam/BTB_patch_extraction_x20_224/2024-04-19/patches'
+PATH_TO_FEATURES = '/local/data2/iulta54/Data/BTB/histology_features/clam_features_mag_x20_size_224/vit_hipt/pt_files'
+
+patch_list = [i.split('.')[0] for i in os.listdir(PATH_TO_PATCHES)]
+feature_file_list = [i.split('.')[0] for i in os.listdir(PATH_TO_FEATURES)]
+
+ids_without_patches = dataset_summary.loc[~dataset_summary.ANONYMIZED_CODE.isin(patch_list)]
+ids_without_features = dataset_summary.loc[~dataset_summary.ANONYMIZED_CODE.isin(feature_file_list)]
+
+print(f'Glasses with missing patching: {len(ids_without_patches)}')
+print(f'Glasses with missing features: {len(ids_without_features)}')
