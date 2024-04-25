@@ -1,12 +1,13 @@
+# hydra configuration
+hydra:
+  searchpath:
+    - file:///local/data1/iulta54/Code/BTB_DEEP_LEARNING/configs
+
 # Default configuration file for running MIL training using CLAM framework (not CLAM per-se)
 defaults:
 - _self_
 - task : BTB_tumor_category
 - local_directories : local_directories
-
-hydra:
-  searchpath:
-    - file:///local/data1/iulta54/Code/BTB_DEEP_LEARNING/configs
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ experiment information
 feature_extractor : 'vit_uni' # Specify which feature extractor was used to obtain obtain the patch encodings. This is used to get build the experiment name and select the right features from the feature directory.
@@ -49,8 +50,8 @@ inst_loss : svm # Instance level clustering loss. Chose between svm, ce, null
 B : 8 # Number of positive/negative patches to sample for clam
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ training settings
-min_epochs: 10 # Number of epochs that the model will train before using Early stopping
-max_epochs : 20 # Max number of epochs
+min_epochs: 10 # Number of epochs that the model will train before using Early stopping applies
+max_epochs : 12 # Max number of epochs
 early_stopping : True # Set to True if early stopping should be set
 patience : 5 
 weighted_sample : True # Set to True if weighted sampling should be performed

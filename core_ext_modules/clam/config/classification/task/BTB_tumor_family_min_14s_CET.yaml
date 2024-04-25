@@ -1,0 +1,16 @@
+# task configuration for running MIL training within the CLAM framework
+description : 'Family classification (CET)' # give a short description of the dataset (Not mandatory, just used for plotting).
+
+data_root_dir : /local/data2/iulta54/Data/BTB/histology_features/clam_vit_conch/BTB_CLAM_fp_feature_extraction/2024-04-12 # Path to where the features are located (this is the path to the experiment_name folder, not the actual feature folder)
+csv_path : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/dataset_csv_file/BTB_csv_for_training_min_14_subjects_family_level_CET/dataset_summary/dataset_description_tumor_family_rep_0_folds_5.csv # Path to the dataset_descriptor csv file
+split_dir : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/dataset_csv_file/BTB_csv_for_training_min_14_subjects_family_level_CET/clam/tumor_family_reps_1_folds_5/repetition_0 # Path to where the split .csv files for this task are located.
+
+n_classes : 3 # Number of classes
+subtyping : True # Set to True if this is a sub-typing problem (TODO - check the code for why this is needed).
+
+label_dict : # specify the classes (class to integer)
+  MEDULLOBLASTOMAS_HISTOLOGYCALLY_DEFINED: 0
+  MEDULLOBLASTOMAS_MOLECULARLY_DEFINED: 1
+  OTHER_CNS_EMBRYONAL_TUMORS: 2
+
+ignore : [] # TODO - check code to see what this does
