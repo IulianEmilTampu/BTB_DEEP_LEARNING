@@ -1,0 +1,28 @@
+# task configuration for running MIL training within the CLAM framework
+description : 'tumor_type' # Used to select the csv_file files describing the dataset and the splits
+version : all
+
+data_root_dir : ${local_directories.feature_directory}/clam_features_mag_x${magnification}_size_${patch_size}/${feature_extractor}
+csv_path : ${local_directories.dataset_csv_files}/nonparametric_bootstrapping/${task.description}/${task.version}/dataset_descriptor.csv
+split_dir : ${local_directories.dataset_csv_files}/nonparametric_bootstrapping/${task.description}/${task.version}/clam/repetition_0
+
+# data_root_dir : /local/data2/iulta54/Data/BTB/histology_features/clam_vit_uni_mag_x20_size_224/BTB_CLAM_vit_uni_features_mag_x20_size_224/2024-04-17 # Path to where the features are located (this is the path to the experiment_name folder, not the actual feature folder)
+# csv_path : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/BTB_csv_for_training/dataset_summary/dataset_description_tumor_type_rep_0_folds_5.csv # Path to the dataset_descriptor csv file
+# split_dir : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/BTB_csv_for_training/clam/tumor_type_reps_1_folds_5/repetition_0 # Path to where the split .csv files for this task are located.
+
+n_classes : 10 # Number of classes
+subtyping : True # Set to True if this is a sub-typing problem (TODO - check the code for why this is needed).
+
+label_dict : # specify the classes (class to integer)
+  ADAMANTINOMATOUS_CRANIOPHARYNGIOMA: 0
+  ATRT: 1
+  DIFFUSE_HIGH_GRADE_GLIOMA: 2
+  EPENDYMOMA_GRADE_3: 3
+  GANGLIOGLIOMA: 4
+  MEDULLOBLASTOMA: 5
+  MEDULLOBLASTOMA_NON_WNT_NON_SHH: 6
+  MEDULLOBLASTOMA_TP53_WILD_TYPE: 7
+  MEDULLOBLASTOMA_WNT_ACTIVATED: 8
+  PILOCYTIC_ASTROCYTOMA: 9
+
+ignore : [] # TODO - check code to see what this does
