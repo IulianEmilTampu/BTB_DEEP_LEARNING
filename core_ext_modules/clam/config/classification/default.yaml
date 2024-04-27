@@ -20,12 +20,12 @@ results_dir : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs # Path to wher
 
 label_frac : 1.0 # Fraction of given training images to use [0, 1]
 seed : 29122009 # For reproducibility
-log_data : True # Set to True to save the logs to TensorBoard
+log_data : False # Set to True to save the logs to TensorBoard
 testing : False # Debugging tool (TODO check the code and see what it does)
 
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ cross validation settings
-k : 5 # Number of folds to run 
+k : 1000 # Number of folds to run 
 k_start : -1 # Sets the number of the fold from where it starts training (-1 means the last one)
 k_end : -1 # Sets the number of the fold from where it ends training (-1 means the first one)
 
@@ -40,8 +40,8 @@ bag_weight : 0.7 # Weight coefficient for bag-level loss
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ model settings
 encoding_size : null # Specify the size of each feature vector. This is not needed anymore since the encoding sice is infered from the .h5 files.
-model_type : abmil # Select the type of classification model to use. Chose between clam_sb (single branch), clam_mb (multi branch), mil
-model_size : null # Size of the model. Chose between small and big. Does not affect the model_type==mil
+model_type : clam_mb # Select the type of classification model to use. Chose between clam_sb (single branch), clam_mb (multi branch), mil
+model_size : small # Size of the model. Chose between small and big. Does not affect the model_type==mil
 drop_out : 0.25 # Specify the drop-out rate [0, 1]
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ CLAM specific settings
@@ -51,7 +51,7 @@ B : 8 # Number of positive/negative patches to sample for clam
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ training settings
 min_epochs: 10 # Number of epochs that the model will train before using Early stopping applies
-max_epochs : 12 # Max number of epochs
+max_epochs : 20 # Max number of epochs
 early_stopping : True # Set to True if early stopping should be set
 patience : 5 
 weighted_sample : True # Set to True if weighted sampling should be performed

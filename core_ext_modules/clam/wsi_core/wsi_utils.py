@@ -329,3 +329,39 @@ def SamplePatches(coords_file_path, save_file_path, wsi_object,
         mode='a'
 
     return canvas, len(coords), len(indices)
+
+def get_closest_downsample_level(wsi, base_magnification:float=20.0, downsample:int=1, print_info:bool=True):
+	'''
+	Utility that given a wsi (openslide object), looks at the available levels and their downsample ratios 
+	and finds the one closes to the combination of requested base_magnification and downsample.
+	Eg.
+		wsi objective_magnification=40, base_magnification=20, downsample=2.
+		patch_level_downsample = closet wsi downsamples to objective_magnification / (base_magnification/downsample)
+	'''
+
+	# print levels, downsamples and objective power
+	levels, downsamples = wsi.getWSIlevels()
+	objective_power = wsi.getObjectivePower()
+	if print_info:
+		print(f'Available levels: {levels}')
+		print(f'Corresponding downsample factors: {downsamples}')
+		print(f'Objective power: {objective_power}')
+
+	# update the base_magnification based on the downsample
+	ref_base_magnification = base_magnification / downsample
+
+	# # Compute what is the down sampling that should be performed given the original and the requested base_magnification.
+	# # Use this to find the level at which the slide should be opened at by looking at the downsample of each available level (the closes should be selected).
+
+	downsample_ratio = round(objective_power / ref_base_magnification)
+	# find the closes in the list of downsamples
+	if downsample_ratio < 1:
+		raise ValueError(f'The requested base magnification is higher than the highest available for this slide ({slide}). Objective magnification < requested magnification. {objective_power} < {patch_reference_object_magnification}')
+	else:
+		downsamples_difference = [abs(d - downsample_ratio) for d in downsamples]
+		index_level_downsample = downsamples_difference.index(min(downsamples_difference))
+		# adjust the level at which tp perform the patching
+		if print_info:
+			print(f'Extracting patches at level {index_level_downsample} which has a downsample of {downsamples[index_level_downsample]}')
+	
+	return index_level_downsample
