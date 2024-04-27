@@ -158,13 +158,13 @@ def make_summary_string(x):
     # get all the information needed
     cl = x.classification_level
     nc = x.nbr_classes
-    model = x.model
+    model = x.aggregation
 
     return f"{cl}\n({nc} classes)\n{model}"
 
 # %% PATHS
 
-AGGREGATED_CSV_FILE = '/flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs/classification/aggregated_evaluation_20240412.csv'
+AGGREGATED_CSV_FILE = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_04_25/aggregated_evaluation_20240427.csv'
 TIME_STAMP = pathlib.Path(AGGREGATED_CSV_FILE).parts[-1].split('.')[0].split('_')[-1]
 SAVE_PATH = pathlib.Path(os.path.join(os.path.dirname(AGGREGATED_CSV_FILE), f'plots_aggregated_evaluation_{TIME_STAMP}'))
 SAVE_PATH.mkdir(parents=True, exist_ok=True)
@@ -180,16 +180,17 @@ Here for each of the classification_levels (category, family and type), plot the
 SAVE_FIGURE = True
 
 # define the order in the plot
-classification_level_order = ["category", "family", "type"]
+classification_level_order = ["tumor_category", "tumor_family", "tumor_type"]
 nbr_classes = [pd.unique(summary_evaluation_df.loc[summary_evaluation_df.classification_level==c].nbr_classes)[0] for c in classification_level_order]
-model_order = ["clam"]
-hue_order = ['resnet50', 'vit_hipt', 'vit_uni']
+# model_order = ["abmil", "clam_sb", 'clam_mb']
+aggregation_order = ["abmil", "clam_sb", 'clam_mb']
+hue_order = ['resnet50', 'vit_hipt', 'vit_conch', 'vit_uni']
 
 # the x order to plot
 x_order = [
     f"{cl}\n({nc} classes)\n{model}"
     for cl, nc in zip(classification_level_order, nbr_classes)
-    for model in model_order
+    for model in aggregation_order
 ]
 
 
@@ -205,11 +206,12 @@ metric_and_text = {
         "metric_name": "Matthews correlation coefficient [-1,1]",
         "metric_range": [0, 1],
     },
-    "auc": {"metric_name": "AUC [0,1]", "metric_range": [0, 1]},
+    "auc": {"metric_name": "AUC (One-vs-Rest) [0,1]", "metric_range": [0, 1]},
     "balanced_accuracy": {"metric_name": "Balanced accuracy [0,1]", "metric_range": [0, 1]},
+    "f1-score": {"metric_name": "F1 score (weighted) [0,1]", "metric_range": [0, 1]},
 }
 
-#  DEBUG
+# #  DEBUG
 # metric_and_text = {
 #     "mcc": {
 #         "metric_name": "Matthews correlation coefficient [-1,1]",
@@ -233,7 +235,7 @@ for metric, metric_specs in metric_and_text.items():
         "title_font_size": 20,
         "y_axis_label_font_size": 20,
         "y_axis_tick_font_size": 20,
-        "x_axis_tick_font_size": 20,
+        "x_axis_tick_font_size": 15,
         "x_axis_tick_rotation": 0,
         "legend_font_size": 12,
         "available_hatches": [
@@ -275,13 +277,13 @@ for metric, metric_specs in metric_and_text.items():
 # %% MAKE SUMMARY TEXT 
 
 # define the order in the text
-classification_level_order = ["category", "family", "type"]
+classification_level_order = ["tumor_category", "tumor_family", "tumor_type"]
 nbr_classes = [pd.unique(summary_evaluation_df.loc[summary_evaluation_df.classification_level==c].nbr_classes)[0] for c in classification_level_order]
 model_order = ["clam"]
 feature_extractor_order = ['resnet50', 'vit_hipt', 'vit_uni']
-metrics = ['mcc', 'balanced_accuracy', 'auc']
+metrics = ['mcc', 'auc', 'f1-score', 'balanced_accuracy']
 
-def aggregate_evaluation_for_mectric(x, pm_symbol = f" \u00B1 " , format='0.2'):
+def aggregate_evaluation_for_mectric(x, pm_symbol = f" \u00B1 " , format='0.2', new_line_symbol='<br>'):
     mean = np.mean(x)
     std = np.std(x)
     min = np.min(x)
@@ -290,7 +292,9 @@ def aggregate_evaluation_for_mectric(x, pm_symbol = f" \u00B1 " , format='0.2'):
     max_95_q = np.quantile(x, 0.95)
 
     # string for printing
-    return f"{mean:{format}f}{pm_symbol}{std:{format}f}\nrange [{min:{format}f}, {max:{format}f}]\nquantile [{min_05_q:{format}f}, {max_95_q:{format}f}]"
+    # return f"{mean:{format}f}{pm_symbol}{std:{format}f}\nrange [{min:{format}f}, {max:{format}f}]\nquantile [{min_05_q:{format}f}, {max_95_q:{format}f}]"
+    return f"{mean:{format}f}{pm_symbol}{std:{format}f}{new_line_symbol}[{min_05_q:{format}f}, {max_95_q:{format}f}]"
+
 
 # define aggregation dictionary to pass to the .agg groupby
 aggregation_dict = dict.fromkeys(metrics)
@@ -299,8 +303,11 @@ for m in aggregation_dict.keys():
 
 
 # compress summary_evaluation_df to be able to plot it using to_markdown
-compressed_summary = summary_evaluation_df.groupby(['classification_level', 'model', 'features']).agg(aggregation_dict)
+compressed_summary = summary_evaluation_df.groupby(['classification_level', 'model', 'features', 'aggregation']).agg(aggregation_dict)
 print(compressed_summary.to_markdown(tablefmt="pipe", stralign='center'))
+# save to file
+with open(os.path.join(SAVE_PATH, 'table_summary_evaluation.md'), 'w') as f:
+    print(compressed_summary.to_markdown(tablefmt="pipe", stralign='center'), file=f)
 
 
 

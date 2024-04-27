@@ -100,7 +100,7 @@ def plotModelPerformance_v2(
         plt.close()
 
 
-def get_performance_metrics(true_logits, pred_softmax, average="macro"):
+def get_performance_metrics(true_logits, pred_softmax, average="weighted"):
     from sklearn.metrics import (
         precision_score, # average_precision_score,
         recall_score,
@@ -184,17 +184,15 @@ def get_performance_metrics(true_logits, pred_softmax, average="macro"):
         "recall": recall,
         "accuracy": accuracy,
         "f1-score": f1score,
-        "auc": auc(fpr, tpr),
+        "auc": roc_auc_score(true_logits, pred_softmax),
         "balanced_accuracy" : balanced_accuracy
     }
 
     # compute overall metrics
-    summary_dict["overall_precision"] = precision_score( # average_precision_score(
+    summary_dict["overall_precision"] = precision_score(
         np.argmax(adjusted_true_logits, axis=-1),
         np.argmax(adjusted_pred_softmax, axis=-1),
-        #adjusted_true_logits, 
-        #adjusted_pred_softmax, 
-        average=average
+        average=average,
     )
     summary_dict["overall_recall"] = recall_score(
         np.argmax(adjusted_true_logits, axis=-1),
@@ -210,25 +208,8 @@ def get_performance_metrics(true_logits, pred_softmax, average="macro"):
         np.argmax(adjusted_pred_softmax, axis=-1),
         average=average,
     )
-    summary_dict["micro_avg_precision"] = precision_score( # average_precision_score()
-        np.argmax(adjusted_true_logits, axis=-1),
-        np.argmax(adjusted_pred_softmax, axis=-1),
-        #adjusted_true_logits, 
-        #adjusted_pred_softmax, 
-        average='micro'
-    )
-    summary_dict["micro_avg_recall"] = recall_score(
-        np.argmax(adjusted_true_logits, axis=-1),
-        np.argmax(adjusted_pred_softmax, axis=-1),
-        average='micro',
-    )
-    summary_dict["micro_avg_f1-score"] = f1_score(
-        np.argmax(adjusted_true_logits, axis=-1),
-        np.argmax(adjusted_pred_softmax, axis=-1),
-        average='micro',
-    )
 
-    summary_dict["overall_auc"] = auc(fpr, tpr)
+    summary_dict["overall_auc"] = roc_auc_score(true_logits, pred_softmax, average=average, multi_class='ovr')
 
     summary_dict["matthews_correlation_coefficient"] = matthews_corrcoef(
         np.argmax(true_logits, axis=-1),
