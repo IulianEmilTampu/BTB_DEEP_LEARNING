@@ -13,9 +13,8 @@ from pathlib import Path
 from omegaconf import DictConfig
 
 @hydra.main(
-    version_base="1.2.0", config_path="config", config_name="BTB_csv_2_hs2p"
+    version_base="1.2.0", config_path="../../configs/pre_processing", config_name="BTB_csv_2_hs2p"
 )
-
 def main(cfg: DictConfig):
 
     # load BT_csv file

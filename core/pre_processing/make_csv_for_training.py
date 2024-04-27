@@ -8,6 +8,7 @@ import os
 import hydra
 import datetime
 import pandas as pd
+from tqdm import tqdm
 
 from pathlib import Path
 import yaml
@@ -67,8 +68,6 @@ def get_repetition_split(cfg:DictConfig, df, random_seed:int=29122009, print_sum
     
     # ################## work on splitting
     if cfg.class_stratification:
-        print("Performing stratified data split (on a per case_id/subject bases).")
-
         # ################## TEST SET
         # perform stratified split
         sgkf = StratifiedGroupKFold(
@@ -239,7 +238,13 @@ def save_for_clam(cfg, df, repetition_number):
     '''
 
     # make save_path
-    save_path = Path(cfg.output_dir, cfg.experiment_name, 'clam', f'{cfg.classification_level}_reps_{cfg.number_of_repetitions}_folds_{cfg.number_of_folds}', f'repetition_{repetition_number}')
+    if cfg.split_strategy == 'cv':
+        save_path = Path(cfg.output_dir, cfg.experiment_name, 'clam', f'{cfg.classification_level}_reps_{cfg.number_of_repetitions}_folds_{cfg.number_of_folds}', f'repetition_{repetition_number}')
+    elif cfg.split_strategy == 'npb':
+        save_path = Path(cfg.output_dir, cfg.experiment_name, 'clam', f'{cfg.classification_level}_reps_{cfg.npb_replicates}', f'repetition_{0}')
+    else:
+        raise NotImplemented
+
     save_path.mkdir(parents=True, exist_ok=True)
 
     for fold in range(cfg.number_of_folds):
@@ -255,8 +260,11 @@ def save_for_clam(cfg, df, repetition_number):
 
         # concatenate and save
         split_to_save = pd.concat([train, validation, test], axis=1).drop(columns=['index'])
-        split_to_save.to_csv(Path(save_path, f'split_{fold}.csv'), index_label=False, index=False)
-
+        if cfg.split_strategy == 'npb':
+            split_to_save.to_csv(Path(save_path, f'split_{fold+repetition_number}.csv'), index_label=False, index=False)
+        else:
+            split_to_save.to_csv(Path(save_path, f'split_{fold}.csv'), index_label=False, index=False)
+        
         # # make and save split_nbr_bool.csv file
         df_for_save['train'] = df_for_save.apply(lambda x : x.set == 'train', axis=1)
         df_for_save['val'] = df_for_save.apply(lambda x : x.set == 'validation', axis=1)
@@ -264,7 +272,10 @@ def save_for_clam(cfg, df, repetition_number):
         
         # refine and save
         split_bool_to_save = df_for_save.drop(columns=['set'])
-        split_bool_to_save.to_csv(Path(save_path, f'split_{fold}_bool.csv'), index_label=False, index=False)
+        if cfg.split_strategy == 'npb':
+            split_bool_to_save.to_csv(Path(save_path, f'split_{fold+repetition_number}_bool.csv'), index_label=False, index=False)
+        else:
+            split_bool_to_save.to_csv(Path(save_path, f'split_{fold}_bool.csv'), index_label=False, index=False)
 
         # # make and save split_nbr_descriptor.csv file 
         df_for_save = df[[f'fold_{fold+1}', 'slide_id', 'label']]
@@ -276,10 +287,16 @@ def save_for_clam(cfg, df, repetition_number):
         df_for_save['test'] = df_for_save.apply(lambda x : x.set == 'test', axis=1)
 
         gb = df_for_save.groupby(['label']).agg({'train': 'sum', 'val': 'sum', 'test': 'sum'})
-        gb.to_csv(Path(save_path, f'split_{fold}_descriptor.csv'), index_label='class', index=True)
+        if cfg.split_strategy == 'npb': 
+            gb.to_csv(Path(save_path, f'split_{fold+repetition_number}_descriptor.csv'), index_label='class', index=True)
+        else:
+            gb.to_csv(Path(save_path, f'split_{fold}_descriptor.csv'), index_label='class', index=True)
     
     # save cfg to file so that it can be reproduced
-    OmegaConf.save(cfg, Path(cfg.output_dir, cfg.experiment_name, 'clam', f'{cfg.classification_level}_reps_{cfg.number_of_repetitions}_folds_{cfg.number_of_folds}',"config.yaml"))
+    if cfg.split_strategy == 'npb' and repetition_number == 0:
+        OmegaConf.save(cfg, Path(cfg.output_dir, cfg.experiment_name, 'clam', f'{cfg.classification_level}_reps_{cfg.npb_replicates}',"config.yaml"))
+    elif cfg.split_strategy == 'cv':
+        OmegaConf.save(cfg, Path(cfg.output_dir, cfg.experiment_name, 'clam', f'{cfg.classification_level}_reps_{cfg.number_of_repetitions}_folds_{cfg.number_of_folds}',"config.yaml"))
 
 def get_label_to_integer_map(unique_labels:list):
     '''
@@ -295,12 +312,10 @@ def get_label_to_integer_map(unique_labels:list):
     
 # %% MAIN
 
-
 @hydra.main(
     version_base="1.2.0", config_path="../../configs/pre_processing", config_name="make_csv_for_training"
 )
 def main(cfg: DictConfig):
-
 
     # load BT_csv file
     btb_csv = pd.read_csv(cfg.btb_csv_path, encoding="ISO-8859-1")
@@ -325,7 +340,7 @@ def main(cfg: DictConfig):
     df_for_split = df_for_split.rename(columns={'ANONYMIZED_CODE':'slide_id', cfg.class_column_name:'label'})
     df_for_split = df_for_split.dropna(subset=['label'])
 
-    print(df_for_split)
+    print(df_for_split.columns)
 
     # check if the slide_ids are available as extracted features
     if cfg.check_available_features:
@@ -359,37 +374,78 @@ def main(cfg: DictConfig):
     # map the class string to an integer (starts from 0)
     label_to_integer_map = get_label_to_integer_map(list(pd.unique(df_for_split.label))) 
     df_for_split['label_integer'] = df_for_split.apply(lambda x : label_to_integer_map[x.label], axis=1)
+    print(label_to_integer_map)
+
 
     # reset index prior splitting
     df_for_split = df_for_split.reset_index()
 
-    print(label_to_integer_map)
+    if cfg.split_strategy == 'cv':
+        # start splitting, one split per repetition
+        with tqdm(total=cfg.number_of_repetitions, unit='rep') as rep_tqdm:
+            for r in range(cfg.number_of_repetitions):
+                # create split for this repetition
+                df_split = get_repetition_split(cfg, df_for_split, random_seed=cfg.random_seed+r, print_summary=False)
 
-    # start splitting, one split per repetition
-    for r in range(cfg.number_of_repetitions):
-        # create split for this repetition
-        df_split = get_repetition_split(cfg, df_for_split, random_seed=cfg.random_seed+r, print_summary=False)
+                # save in the format of the specified classification framework
+                for f in cfg.framework:
+                    if f.lower() == 'hipt':
+                        # save using hipt format
+                        save_for_hipt(cfg, df_split, repetition_number=r)
+                    elif f.lower() == 'clam':
+                        # save using clam format
+                        save_for_clam(cfg, df_split, repetition_number=r)
+                    else:
+                        raise ValueError(f'The given framework is not supported. Given {f}. If need support for this framework, see the definition of save_for_hipt of save_for_clam.')
+                
+                rep_tqdm.update()
 
-        # save in the format of the specified classification framework
-        for f in cfg.framework:
-            if f.lower() == 'hipt':
-                # save using hipt format
-                save_for_hipt(cfg, df_split, repetition_number=r)
-            elif f.lower() == 'clam':
-                # save using clam format
-                save_for_clam(cfg, df_split, repetition_number=r)
-            else:
-                raise ValueError(f'The given framework is not supported. Given {f}. If need support for this framework, see the definition of save_for_hipt of save_for_clam.')
+            # save the raw dataframe for this repetition. This can be used as dataset_description.csv in CLAM
+            save_path = Path(cfg.output_dir, cfg.experiment_name, 'dataset_summary')
+            save_path.mkdir(parents=True, exist_ok=True)
+            # re-order columns before saving 
+            col_order = ['case_id', 'slide_id', 'label', 'label_integer', 'site_id'] if cfg.site_stratification else ['case_id', 'slide_id', 'label', 'label_integer']
+            [col_order.append(f'fold_{f+1}') for f in range(cfg.number_of_folds)]
+            df_split= df_split[col_order]
+            # df_split.to_csv(Path(save_path, f'dataset_description_{cfg.classification_level}_rep_{r}_folds_{cfg.number_of_folds}.csv'), index_label=False, index=False)
+            df_split.to_csv(Path(save_path, f'dataset_descriptor.csv'), index_label=False, index=False)
 
-        # save the raw dataframe for this repetition. This can be used as dataset_description.csv in CLAM
-        # save_path = Path(cfg.output_dir, cfg.experiment_name, 'dataset_summary')
-        save_path.mkdir(parents=True, exist_ok=True)
-        # re-order columns before saving 
-        col_order = ['case_id', 'slide_id', 'label', 'label_integer', 'site_id'] if cfg.site_stratification else ['case_id', 'slide_id', 'label', 'label_integer']
-        [col_order.append(f'fold_{f+1}') for f in range(cfg.number_of_folds)]
-        df_split= df_split[col_order]
-        # df_split.to_csv(Path(save_path, f'dataset_description_{cfg.classification_level}_rep_{r}_folds_{cfg.number_of_folds}.csv'), index_label=False, index=False)
-        df_split.to_csv(Path(save_path, f'dataset_descriptor.csv'), index_label=False, index=False)
+            
+
+
+    elif cfg.split_strategy == 'npb':
+        with tqdm(total=cfg.npb_replicates, unit='replicas') as rep_tqdm:
+            for r in range(cfg.npb_replicates):
+                # update cfg to have number_of_folds=1
+                cfg.number_of_folds = 1
+                # create split for this replicate
+                df_split = get_repetition_split(cfg, df_for_split, random_seed=cfg.random_seed+r, print_summary=False)
+
+                # save in the format of the specified classification framework
+                for f in cfg.framework:
+                    if f.lower() == 'hipt':
+                        # save using hipt format
+                        save_for_hipt(cfg, df_split, repetition_number=r)
+                    elif f.lower() == 'clam':
+                        # save using clam format
+                        save_for_clam(cfg, df_split, repetition_number=r)
+                    else:
+                        raise ValueError(f'The given framework is not supported. Given {f}. If need support for this framework, see the definition of save_for_hipt of save_for_clam.')
+                    
+                rep_tqdm.update()
+
+            # save the raw dataframe for this repetition. This can be used as dataset_description.csv in CLAM
+            save_path = Path(cfg.output_dir, cfg.experiment_name, 'dataset_summary')
+            save_path.mkdir(parents=True, exist_ok=True)
+            # re-order columns before saving 
+            col_order = ['case_id', 'slide_id', 'label', 'label_integer', 'site_id'] if cfg.site_stratification else ['case_id', 'slide_id', 'label', 'label_integer']
+            [col_order.append(f'fold_{f+1}') for f in range(cfg.number_of_folds)]
+            df_split= df_split[col_order]
+            # df_split.to_csv(Path(save_path, f'dataset_description_{cfg.classification_level}_rep_{r}_folds_{cfg.number_of_folds}.csv'), index_label=False, index=False)
+            df_split.to_csv(Path(save_path, f'dataset_descriptor.csv'), index_label=False, index=False)
+
+    else:
+        raise NotImplemented
 
     # save a task .yaml template file (if requested)
     if cfg.save_classification_task_yaml_template:
@@ -410,7 +466,6 @@ def main(cfg: DictConfig):
         
         with open(os.path.join(save_path, f'{cfg.classification_level}.yaml'), 'w') as outfile:
             yaml.dump(classification_task_template, outfile, default_flow_style=False)
-
 
 if __name__ == '__main__':
     main()
