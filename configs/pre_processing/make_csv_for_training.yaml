@@ -1,6 +1,6 @@
 btb_csv_path: '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/dataset_csv_file/BTB_AGGREGATED_CLINICAL_AND_WSI_INFORMATION_KS_LK_GOT_UM_LUND_ANONYM_20240405.csv'
-
 output_dir: '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs' # folder where to save output
+
 experiment_name: splits_${classification_level}_${split_strategy}
 save_classification_task_yaml_template : True # saves a .yaml file that matches the clam/config/classification/task config files. Will not have the full paths to the .csv files dor the feature directory since these will change based on the computer the code is run on.
 
@@ -17,7 +17,7 @@ test_fraction : 0.3 # valid for both cv and npb split_strategy
 number_of_repetitions : 1 # valid only for cv split strategy 
 number_of_folds : 5 # valid only for cv split strategy
 random_seed : 29122009
-validation_fraction : 0.10 # only used if the number_of_folds == 1
+validation_fraction : 0.2 # only used if the number_of_folds == 1
 
 # classification type and class split settings
 
