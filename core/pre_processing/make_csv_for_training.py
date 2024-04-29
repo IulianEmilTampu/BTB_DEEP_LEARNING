@@ -5,6 +5,7 @@ creates the .csv files needed to run HIPT or CLAM classification training.
 '''
 
 import os
+import warnings
 import hydra
 import datetime
 import pandas as pd
@@ -93,10 +94,17 @@ def get_repetition_split(cfg:DictConfig, df, random_seed:int=29122009, print_sum
         dataset_split_df = df_train_val_split.copy()
 
         # ################# TRAINING and VALIDATION SETs
+        # build nbr_splits. This is needed in case the cfg.number_of_folds and cfg.validation_fraction is provided
+        if cfg.number_of_folds == 1:
+            if cfg.validation_fraction is not None:
+                n_splits = int(1 / cfg.validation_fraction)
+            else:
+                n_splits = 2
+        else:
+            n_splits = cfg.number_of_folds
+        
         sgkf = StratifiedGroupKFold(
-            n_splits=cfg.number_of_folds
-            if cfg.number_of_folds != 1
-            else 2,
+            n_splits=n_splits,
             shuffle=True,
             random_state=random_seed,
         )
@@ -111,12 +119,23 @@ def get_repetition_split(cfg:DictConfig, df, random_seed:int=29122009, print_sum
             )
         ):
             # add a column in the dataset_split_df and flag all the files based on the split
-            dataset_split_df[f"fold_{cv_f+1}"] = "validation"
+            dataset_split_df[f"fold_{cv_f+1}"] = "train"
             # flag the training files
-            dataset_split_df.loc[train_ix, f"fold_{cv_f+1}"] = "train"
+            dataset_split_df.loc[val_ix, f"fold_{cv_f+1}"] = "validation"
 
             # add to the df_test_split the flag for this fold
             df_test_split[f"fold_{cv_f+1}"] = "test"
+
+            # check that there are elements in the training, val and test for each of the classes
+            for s_ix, s in zip((train_ix, val_ix),('train', 'validation')):
+                aus_df = df_train_val_split.loc[s_ix]
+                # get nbr. unique subjects per class
+                classes = list(pd.unique(df.label))
+                classes.sort()
+                per_class_nbr_subjs = [len(pd.unique(aus_df.loc[aus_df.label == c].case_id)) for c in list(pd.unique(df.label))]
+                # if any of the classes has nbr_subjs == 0, raise warning
+                if any([i==0 for i in per_class_nbr_subjs]):
+                    warnings.warn(f"Some of the classes in {s} set have nbr_subjs == 0 (fold=={cv_f}).\n   Unique classes: {list(pd.unique(df.label))}\n   Unique subjects: {per_class_nbr_subjs}")
 
             # print summary
             if print_summary:
@@ -195,6 +214,123 @@ def get_repetition_split(cfg:DictConfig, df, random_seed:int=29122009, print_sum
     dataset_split_df = dataset_split_df.drop(columns=["level_0", "index"])
 
     return dataset_split_df
+
+def get_repetition_split_v2(cfg:DictConfig, df, random_seed:int=29122009, print_summary:bool=False):
+    '''
+    Utility that splits the slide_ids in the df using a per case_id split (subject wise-splitting).
+    It applies label stratification is requested. TODO site stratification
+
+    INPUT 
+        cfg : DictConfig
+            Configuration dictionary
+        df : pandas Dataframe.
+            Dataframe with the case_id, slide_id, label and site (if requested) information.
+        random_seed : int
+            Seeds the random split
+    
+    OUTPUT
+        df : pandas Dataframe
+            Dataframe with each of the slide_id as training, val or test for each of the specified folds.
+    '''
+
+    if print_summary:
+        # print summary before start splitting
+        print_df_summary(df)
+    
+    # get indexes in the dataset for each of the subjects
+    unique_case_ids = list(pd.unique(df.case_id))
+    case_id_to_index_map = {} # maps where each slide for each case id are.
+    case_id_to_label = {}
+    for c_id in unique_case_ids:
+        case_id_to_index_map[c_id] = df.index[df.case_id == c_id].tolist()
+        case_id_to_label[c_id] = pd.unique(df.loc[df.case_id == c_id].label).tolist()[0]
+    
+    # get a df which has two columns: case_id and label
+    df_for_split = pd.DataFrame(case_id_to_label.items(), columns=['case_id', 'label'])
+
+    # ################## work on splitting
+    if cfg.class_stratification:
+        # get test set case_id indexes and then the train and validation case_id indexes. 
+        # Using these, create a column for each fold and flag the slide_id as test, train aor validation. 
+        
+        split_indexes = [] # saves the split indexes for each of the folds.
+
+        # ################## TEST SET
+        # The number of splits for the first split (test and train_val) is computed based on the fraction 
+        # of the test set
+        n_splits = int(1 / cfg.test_fraction)
+        skf = StratifiedKFold(
+            n_splits=n_splits,
+            shuffle=True,
+            random_state=random_seed,
+        )
+
+        train_val_ix, test_ix = next(
+            skf.split(X=df_for_split.case_id, y=df_for_split.label)
+        )
+
+        # ################## TRAIN and VALIDATION
+        df_train_val_for_split = df_for_split.loc[train_val_ix].reset_index()
+               
+        # Build nbr_splits considering that the fraction cfg.validation_fraction is wrt to the entire dataset.
+        if cfg.number_of_folds == 1:
+            if cfg.validation_fraction is not None:
+                n_splits = int(1 / (cfg.validation_fraction / (1 - cfg.test_fraction)))
+            else:
+                n_splits = 2
+        else:
+            n_splits = cfg.number_of_folds
+        
+        skf = StratifiedKFold(
+            n_splits=n_splits,
+            shuffle=True,
+            random_state=random_seed,
+        )
+
+        # get splits for all the folds
+        for cv_f, (train_ix, val_ix) in enumerate(
+            skf.split(X=df_train_val_for_split.case_id, y=df_train_val_for_split.label)
+        ):
+            
+            # save indexes 
+            split_indexes.append({
+                'test': list(df_for_split.loc[test_ix, 'case_id']),
+                'train': list(df_train_val_for_split.loc[train_ix, 'case_id']),
+                'validation': list(df_train_val_for_split.loc[val_ix, 'case_id']),
+            })
+
+            if cv_f == cfg.number_of_folds-1:
+                break
+    else:
+        raise ValueError('Not label-stratified split is not implemented.')
+    
+    # build add folds columns to the dataframe and return
+    splitted_df = df.copy()
+    for cv_f, s in enumerate(split_indexes):
+        # create column for this fold
+        splitted_df[f'fold_{cv_f+1}'] = 'NA'
+        for split_name, case_ids in s.items():
+            # check that there are elements for each of the classes
+            classes = list(pd.unique(splitted_df.label))
+            classes.sort()
+            per_class_nbr_subjs = df_for_split.loc[df_for_split.case_id.isin(case_ids)]
+            per_class_nbr_subjs = [len(pd.unique(per_class_nbr_subjs.loc[per_class_nbr_subjs.label==c].case_id)) for c in classes]
+
+            # if any of the classes has nbr_subjs == 0, raise warning
+            if any([i==0 for i in per_class_nbr_subjs]):
+                warnings.warn(f"Some of the classes in {split_name} set have nbr_subjs == 0 (fold=={cv_f}).")
+                print(f"{[print(f'{classes[i]:42s}: {per_class_nbr_subjs[i]}') for i in range(len(classes))]}")
+
+            # get the indexes of the slide ids for these case_id 
+            slide_indexes = []
+            [slide_indexes.extend(case_id_to_index_map[case_id]) for case_id in case_ids]
+
+            # set flag the slide ids
+            splitted_df.loc[slide_indexes, f'fold_{cv_f+1}'] = split_name
+
+        #     print(f'{cv_f}: {split_name} -> {len(case_ids) / len(df_for_split) * 100:0.2f}% (subj: {len(case_ids)}, slides: {len(slide_indexes)})')
+        # print('\n')
+    return splitted_df
 
 def print_df_summary(df):
     # print totals first 
@@ -366,10 +502,10 @@ def main(cfg: DictConfig):
         min_nbr_subjects_per_label = int(cfg.min_nbr_subjects_per_class)
         labels_to_keep = [l for l in list(pd.unique(df_for_split.label)) if len(pd.unique(df_for_split.loc[df_for_split.label==l].case_id)) >= min_nbr_subjects_per_label]
         labels_to_remove = [l for l in list(pd.unique(df_for_split.label)) if l not in labels_to_keep]
-        df_for_split = df_for_split.loc[df_for_split.label.isin(labels_to_keep)]
-
-        print(f'Removed {len(labels_to_remove)} labels based on the min nbr. of subject filter ( >= {min_nbr_subjects_per_label}).')
+        percentage_slides_to_remove  = (len(df_for_split.loc[df_for_split.label.isin(labels_to_remove)]) / len(df_for_split)) * 100
+        print(f'Removed {len(labels_to_remove)} labels based on the min nbr. of subject filter ( >= {min_nbr_subjects_per_label}) ({percentage_slides_to_remove:0.2f}% of the slides).')
         print(f'Using {len(labels_to_keep)} labels.')
+        df_for_split = df_for_split.loc[df_for_split.label.isin(labels_to_keep)]
     
     # map the class string to an integer (starts from 0)
     label_to_integer_map = get_label_to_integer_map(list(pd.unique(df_for_split.label))) 
@@ -385,7 +521,7 @@ def main(cfg: DictConfig):
         with tqdm(total=cfg.number_of_repetitions, unit='rep') as rep_tqdm:
             for r in range(cfg.number_of_repetitions):
                 # create split for this repetition
-                df_split = get_repetition_split(cfg, df_for_split, random_seed=cfg.random_seed+r, print_summary=False)
+                df_split = get_repetition_split_v2(cfg, df_for_split, random_seed=cfg.random_seed+r, print_summary=False)
 
                 # save in the format of the specified classification framework
                 for f in cfg.framework:
@@ -401,7 +537,7 @@ def main(cfg: DictConfig):
                 rep_tqdm.update()
 
             # save the raw dataframe for this repetition. This can be used as dataset_description.csv in CLAM
-            save_path = Path(cfg.output_dir, cfg.experiment_name, 'dataset_summary')
+            save_path = Path(cfg.output_dir, cfg.experiment_name)
             save_path.mkdir(parents=True, exist_ok=True)
             # re-order columns before saving 
             col_order = ['case_id', 'slide_id', 'label', 'label_integer', 'site_id'] if cfg.site_stratification else ['case_id', 'slide_id', 'label', 'label_integer']
@@ -415,11 +551,12 @@ def main(cfg: DictConfig):
 
     elif cfg.split_strategy == 'npb':
         with tqdm(total=cfg.npb_replicates, unit='replicas') as rep_tqdm:
+            temp_split_dfs = []
             for r in range(cfg.npb_replicates):
                 # update cfg to have number_of_folds=1
                 cfg.number_of_folds = 1
                 # create split for this replicate
-                df_split = get_repetition_split(cfg, df_for_split, random_seed=cfg.random_seed+r, print_summary=False)
+                df_split = get_repetition_split_v2(cfg, df_for_split, random_seed=cfg.random_seed+r, print_summary=True if r == 0 else False)
 
                 # save in the format of the specified classification framework
                 for f in cfg.framework:
@@ -432,20 +569,27 @@ def main(cfg: DictConfig):
                     else:
                         raise ValueError(f'The given framework is not supported. Given {f}. If need support for this framework, see the definition of save_for_hipt of save_for_clam.')
                     
-                rep_tqdm.update()
+                    # add this 'fold' to the df_for_split dataframe
+                    df_split = df_split.rename(columns={'fold_1': f'fold_{r+1}'})
+                    temp_split_dfs.append(df_split[f'fold_{r+1}'])
 
+                rep_tqdm.update()
+            
+            # add all the folds to the dataframe
+            temp_split_dfs = pd.concat(temp_split_dfs, axis=1)
+            df_for_split = pd.concat([df_for_split, temp_split_dfs], axis=1)
+            
             # save the raw dataframe for this repetition. This can be used as dataset_description.csv in CLAM
-            save_path = Path(cfg.output_dir, cfg.experiment_name, 'dataset_summary')
+            save_path = Path(cfg.output_dir, cfg.experiment_name)
             save_path.mkdir(parents=True, exist_ok=True)
             # re-order columns before saving 
             col_order = ['case_id', 'slide_id', 'label', 'label_integer', 'site_id'] if cfg.site_stratification else ['case_id', 'slide_id', 'label', 'label_integer']
-            [col_order.append(f'fold_{f+1}') for f in range(cfg.number_of_folds)]
-            df_split= df_split[col_order]
+            [col_order.append(f'fold_{r+1}') for r in range(cfg.npb_replicates)]
+            df_for_split = df_for_split[col_order]
             # df_split.to_csv(Path(save_path, f'dataset_description_{cfg.classification_level}_rep_{r}_folds_{cfg.number_of_folds}.csv'), index_label=False, index=False)
-            df_split.to_csv(Path(save_path, f'dataset_descriptor.csv'), index_label=False, index=False)
-
+            df_for_split.to_csv(Path(save_path, f'dataset_descriptor.csv'), index_label=False, index=False)
     else:
-        raise NotImplemented
+        raise ValueError(f'The given split strategy is not implemented. Given {cfg.split_strategy}. Implemented [cv, npb]')
 
     # save a task .yaml template file (if requested)
     if cfg.save_classification_task_yaml_template:
