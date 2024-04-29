@@ -5,6 +5,7 @@ creates the .csv files needed to run HIPT or CLAM classification training.
 '''
 
 import os
+import sys 
 import warnings
 import hydra
 import datetime
@@ -476,8 +477,26 @@ def main(cfg: DictConfig):
     df_for_split = df_for_split.rename(columns={'ANONYMIZED_CODE':'slide_id', cfg.class_column_name:'label'})
     df_for_split = df_for_split.dropna(subset=['label'])
 
-    print(df_for_split.columns)
+    # get case_id (subject id) from the anonymized codes (slide_id). This is needed to perform a per-case/subject split
+    df_for_split['case_id'] = df_for_split.apply(lambda x : case_id_from_anonymized_code(x.slide_id), axis=1)
+    # get site_id if site stratification
+    if cfg.site_stratification:
+        df_for_split['site_id'] = df_for_split.apply(lambda x : site_id_from_anonymized_code(x.slide_id), axis=1)
 
+    # # if creating splits for patient level features, compress the dataframe (one row per case_id with slide id == case id. THe Anonymized code is also trimmed to only have the site and subject codes).abs
+    print_df_summary(df_for_split)
+    if cfg.feature_level == 'patient':
+        # compact information
+        df_for_split['slide_id'] = df_for_split.apply(lambda x : '_'.join(x.slide_id.split('_')[0:3]), axis=1)
+        
+        if cfg.site_stratification:
+            df_for_split = df_for_split.groupby(['case_id']).agg({'slide_id': lambda x : pd.unique(x)[0], 'label': lambda x : pd.unique(x)[0], 'site_id': lambda x : pd.unique(x)[0]}).reset_index()
+        else:
+            df_for_split = df_for_split.groupby(['case_id']).agg({'slide_id': lambda x : pd.unique(x)[0], 'label': lambda x : pd.unique(x)[0]}).reset_index()
+    print('\n\n')
+    print_df_summary(df_for_split)
+
+    sys.exit()
     # check if the slide_ids are available as extracted features
     if cfg.check_available_features:
         slide_ids = list(df_for_split.slide_id.values)
@@ -490,13 +509,6 @@ def main(cfg: DictConfig):
             slide_id_with_features = [slide_ids[i] for i, c in enumerate(feature_check) if c]
             df_for_split = df_for_split.loc[df_for_split.slide_id.isin(slide_id_with_features)]
 
-
-    # get case_id (subject id) from the anonymized codes (slide_id). This is needed to perform a per-case/subject split
-    df_for_split['case_id'] = df_for_split.apply(lambda x : case_id_from_anonymized_code(x.slide_id), axis=1)
-    # get site_id if site stratification
-    if cfg.site_stratification:
-        df_for_split['site_id'] = df_for_split.apply(lambda x : site_id_from_anonymized_code(x.slide_id), axis=1)
-    
     # remove (if requested) labels with too few subjects
     if cfg.min_nbr_subjects_per_class != -1:
         min_nbr_subjects_per_label = int(cfg.min_nbr_subjects_per_class)
