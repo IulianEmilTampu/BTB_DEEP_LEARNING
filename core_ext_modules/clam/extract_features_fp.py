@@ -139,7 +139,6 @@ def main(cfg:DictConfig):
 	print('Loading model checkpoint')
 	if cfg.model_type == 'resnet50':
 		model = resnet50_baseline(pretrained=True)
-		model = model.to(device)
 	elif cfg.model_type == 'vit_hipt':
 		# import HIPT ViT pre-trained model
 		model = get_vit256(pretrained_weights=os.path.join(cfg.pre_trained_model_archive, 'vit256_small_dino.pth')).to(device)
@@ -152,13 +151,22 @@ def main(cfg:DictConfig):
     "vit_large_patch16_224", img_size=224, patch_size=16, init_values=1e-5, num_classes=0, dynamic_img_size=True
 		)
 		model.load_state_dict(torch.load(os.path.join(cfg.pre_trained_model_archive, "vit224_large_uni_dino.bin"), map_location=device), strict=True)
-		model = model.to(device)
 	elif cfg.model_type == 'vit_conch':
 		# import CONCH ViT pre-trained model (using the conch factory.py utility)
 		from models.conch_open_clip_custom import create_model_from_pretrained
 		model, _ = create_model_from_pretrained(model_cfg='conch_ViT-B-16', checkpoint_path=os.path.join(cfg.pre_trained_model_archive, "vit224_large_conch.bin"), device=device)
 		model.forward = partial(model.encode_image, proj_contrast=False, normalize=False)
-		model = model.to(device)
+	elif cfg.model_type == 'ctranspath':
+		from models.ctranspath_model_utils import ctranspath
+		
+		model = ctranspath()
+		model.head = nn.Identity()
+		td = torch.load(os.path.join(cfg.pre_trained_model_archive, "ctranspath.pth"))
+		model.load_state_dict(td['model'], strict=True)
+	else:
+		raise NotImplementedError(f'The given feature extractor is not implemented. Given {cfg.model_type}')
+	
+	model = model.to(device)
 
 	if torch.cuda.device_count() > 1:
 		model = nn.DataParallel(model)
@@ -170,7 +178,7 @@ def main(cfg:DictConfig):
 	skipped_slide_ids = []
 
 	for bag_candidate_idx in range(total):
-		slide_id = bags_dataset[bag_candidate_idx].split(cfg.slide_ext)[0]
+		slide_id = str(bags_dataset[bag_candidate_idx]).split(cfg.slide_ext)[0]
 		bag_name = slide_id +'.h5'
 		h5_file_path = os.path.join(cfg.data_h5_dir, 'patches', bag_name)
 
@@ -187,7 +195,7 @@ def main(cfg:DictConfig):
 			slide_file_path = os.path.join(cfg.data_slide_dir, slide_id+cfg.slide_ext)
 		elif os.path.isfile(cfg.data_slide_dir) and os.path.splitext(cfg.data_slide_dir)[1]=='.csv':
 			# get file path from the given .csv file (slide_path column)
-			slide_file_path = df_file_paths.loc[df_file_paths.slide_id==slide_id].slide_path.values[0]
+			slide_file_path = df_file_paths.loc[df_file_paths.slide_id.astype('string')==slide_id].slide_path.values[0]
 		else:
 			raise NotImplementedError
 		# END
