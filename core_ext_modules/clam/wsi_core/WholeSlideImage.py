@@ -16,6 +16,7 @@ from wsi_core.wsi_utils import savePatchIter_bag_hdf5, initialize_hdf5_bag, coor
 import itertools
 from wsi_core.util_classes import isInContourV1, isInContourV2, isInContourV3_Easy, isInContourV3_Hard, Contour_Checking_fn
 from utils.file_utils import load_pkl, save_pkl
+import tqdm
 
 Image.MAX_IMAGE_PIXELS = 933120000
 
@@ -404,8 +405,8 @@ class WholeSlideImage(object):
                     init = False
                 else:
                     save_hdf5(save_path_hdf5, asset_dict, mode='a')
-
-        return self.hdf5_file
+        return save_path_hdf5
+        # return self.hdf5_file
 
 
     def process_contour(self, cont, contour_holes, patch_level, save_path, patch_size = 256, step_size = 256,
@@ -499,6 +500,34 @@ class WholeSlideImage(object):
 
         else:
             return {}, {}
+    
+    def save_image_patches_from_coordinate_h5(self, h5_file_path, save_path, white_black:bool=True, white_thresh:int=15, black_thresh:int=50, patch_image_format:str='png'):
+        '''
+        Utility that given a h5_file_path, extracts the patches from the WSIs and saved them the a file.
+        '''
+        # load h5 file
+        with h5py.File(h5_file_path, "r") as f:
+            coordinates = f['coords'][:]
+            patch_level = f['coords'].attrs['patch_level']
+            patch_size = f['coords'].attrs['patch_size']
+            length = len(coordinates)
+        
+        print(f'Saving {coordinates.shape[0]} patches to image (ps {patch_size}, level {patch_level}).')
+        
+        with tqdm.tqdm(total=length, unit='ImgPatches') as tqdm_save_patch:
+            for coor in coordinates:
+                x, y = coor[0], coor[1]
+                # read region
+                patch_PIL = self.wsi.read_region((x,y), patch_level, (patch_size, patch_size)).convert('RGB')
+                # filter out full white or black patches
+                if white_black:
+                    if isBlackPatch(np.array(patch_PIL), rgbThresh=black_thresh) or isWhitePatch(np.array(patch_PIL), satThresh=white_thresh): 
+                        continue
+                # save patch to image
+                save_name = f"{int(x)}_{int(y)}.{patch_image_format}"
+                patch_PIL.save(os.path.join(save_path, save_name))
+                tqdm_save_patch.update()
+
 
     @staticmethod
     def process_coord_candidate(coord, contour_holes, ref_patch_size, cont_check_fn):

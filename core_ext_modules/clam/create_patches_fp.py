@@ -14,6 +14,9 @@ import pandas as pd
 import hydra
 from omegaconf import DictConfig
 import pathlib
+import sys
+import h5py
+import multiprocessing as mp
 
 # %% UTILITIES
 def stitching(file_path, wsi_object, downscale = 64):
@@ -48,6 +51,17 @@ def patching(WSI_object, **kwargs):
 	### Stop Patch Timer
 	patch_time_elapsed = time.time() - start_time
 	return file_path, patch_time_elapsed
+
+def save_patches_file(WSI_object, **kwargs):
+	### Start Patch saver iter
+	start_time = time.time()
+	# save patch
+	WSI_object.save_image_patches_from_coordinate_h5(**kwargs)
+	### Stop Patch Timer
+	patch_time_elapsed = time.time() - start_time
+
+	return patch_time_elapsed
+
 
 def get_closest_downsample_level(wsi, base_magnification:float=20.0, downsample:int=1, print_info:bool=True):
 	'''
@@ -100,7 +114,8 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 				  stitch= False, 
 				  patch = False, auto_skip=True, process_list = None,
 				  save_using_anonymized_slide_id:bool=False, 
-				  anonymized_slide_ids:list=None):
+				  anonymized_slide_ids:list=None, 
+				  save_patches_to_image:bool=False):
 
 	# IET 
 	if os.path.isfile(source):
@@ -141,6 +156,8 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 	seg_times = 0.
 	patch_times = 0.
 	stitch_times = 0.
+	if save_patches_to_image:
+		save_patch_to_file_times = 0.
 
 	for i in range(total):
 		df.to_csv(os.path.join(save_dir, 'process_list_autogen.csv'), index=False)
@@ -154,7 +171,7 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 		# IET
 		# slide_id, _ = os.path.splitext(slide)
 		if save_using_anonymized_slide_id:
-			slide_id = process_stack.loc[idx, 'anonymized_slide_id']
+			slide_id = str(process_stack.loc[idx, 'anonymized_slide_id'])
 		else:
 			slide_id, _ = os.path.basename(os.path.splitext(slide))
 		# END
@@ -263,7 +280,7 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 
 		if save_mask:
 			mask = WSI_object.visWSI(**current_vis_params)
-			mask_path = os.path.join(mask_save_dir, slide_id+'.jpg')
+			mask_path = os.path.join(mask_save_dir, slide_id +'.jpg')
 			mask.save(mask_path)
 
 		patch_time_elapsed = -1 # Default time
@@ -273,6 +290,25 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 			current_patch_params.update({'patch_level': updated_patch_level, 'patch_size': patch_size, 'step_size': step_size, 
 										 'save_path': patch_save_dir})
 			file_path, patch_time_elapsed = patching(WSI_object = WSI_object,  **current_patch_params,)
+
+			save_patch_time_elapsed = -1
+			if save_patches_to_image and file_path:
+				# create folder where to save the image patches for this slide_id
+				save_path_patch_images =  os.path.join(os.path.dirname(patch_save_dir),'image_patches', str(patch_size), slide_id)
+				pathlib.Path(save_path_patch_images).mkdir(parents=True, exist_ok=True)
+				
+				# save all the patches in file_path
+				save_to_file_params = {
+					'h5_file_path': file_path, 
+					'save_path': save_path_patch_images,
+					'white_black': True, 
+					'white_thresh': 15, 
+					'black_thresh': 50, 
+					'patch_image_format':'png'
+				}
+				save_patch_time_elapsed = save_patches_file(WSI_object = WSI_object, **save_to_file_params)
+
+
 		
 		stitch_time_elapsed = -1
 		if stitch:
@@ -284,20 +320,28 @@ def seg_and_patch(source, save_dir, patch_save_dir, mask_save_dir, stitch_save_d
 
 		print("segmentation took {} seconds".format(seg_time_elapsed))
 		print("patching took {} seconds".format(patch_time_elapsed))
+		if save_patches_to_image:
+			print("save of patches to file took {} seconds".format(save_patch_time_elapsed))
 		print("stitching took {} seconds".format(stitch_time_elapsed))
 		df.loc[idx, 'status'] = 'processed'
 
 		seg_times += seg_time_elapsed
 		patch_times += patch_time_elapsed
 		stitch_times += stitch_time_elapsed
+		if save_patches_to_image:
+			save_patch_to_file_times += save_patch_time_elapsed
 
 	seg_times /= total
 	patch_times /= total
 	stitch_times /= total
+	if save_patches_to_image:
+		save_patch_to_file_times /= total
 
 	df.to_csv(os.path.join(save_dir, 'process_list_autogen.csv'), index=False)
 	print("average segmentation time in s per slide: {}".format(seg_times))
 	print("average patching time in s per slide: {}".format(patch_times))
+	if save_patches_to_image:
+		print("average save patching time in s per slide: {}".format(save_patch_to_file_times))
 	print("average stiching time in s per slide: {}".format(stitch_times))
 		
 	return seg_times, patch_times
@@ -390,7 +434,9 @@ def main(cfg: DictConfig):
 											patch_downsample = cfg.downsample,
 											process_list = process_list, 
 											auto_skip=cfg.no_auto_skip, 
-											save_using_anonymized_slide_id=cfg.save_using_anonymized_slide_ids)
+											save_using_anonymized_slide_id=cfg.save_using_anonymized_slide_ids,
+											save_patches_to_image=cfg.save_patches_to_image,
+	)
 
 if __name__ == '__main__':
 	main()

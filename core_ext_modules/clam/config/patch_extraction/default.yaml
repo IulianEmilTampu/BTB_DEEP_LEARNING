@@ -1,22 +1,23 @@
 # patch extraction configuration for the CLAM framework
 
-source : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/BTB_csv_2_hs2p_with_normals/2024-04-17/BTB_for_hs2p_missed.csv # Path to folder containing raw wsi image files or path to a .csv file containing a list of the file paths to perform th patching.
-save_dir : /run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/clam # directory to save processed data
-experiment_name : BTB_patch_extraction_x${base_magnification}_${patch_size}
+source : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/BTB_csv_2_hs2p_UPPSALA/2024-05-07/BTB_for_hs2p_remaining_wsis.csv # Path to folder containing raw wsi image files or path to a .csv file containing a list of the file paths to perform th patching.
+save_dir : /run/media/iulta54/Expansion/Datasets/BTB/EXTRACTED_PATCHES_UPPSALA # directory to save processed data
+experiment_name : BTB_patch_extraction_x${base_magnification}_${patch_size}_remaining_wsis
 save_using_anonymized_slide_ids : True # this works in the case source is a .csv file with a column slide_id with the anonymized slide ids, and slide_path with the path for each slide.
 
 preset : False # Predefined profile of default segmentation and filter parameters (.csv)
-process_list : False # name of list of images to process with parameters (.csv)
+process_list : /run/media/iulta54/Expansion/Datasets/BTB/EXTRACTED_PATCHES_UPPSALA/process_list_autogen_remaining_to_patch.csv # name of list of images to process with parameters (.csv)
 
 base_magnification : 20 # Specifies the magnification at which the patch_level should be refered to. Eg. patch_base_magnification=20 and patch_level=1, means that the patches are extracted at x20 magnification.
                               # patch_base_magnification=40 and patch_level=2, means that the patches are extracted at x20 magnification (patch_level=1 references to x40 magnification).
 downsample : 1 # downsample level at which to patch refered to the base_magnification.
 custom_downsample : 1 # Only used on the non fp patching version. Custom downscale when native downsample is not available (only tested w/ 2x downscale). This should be 1 or 2.'
-patch_size : 256 # patch size
+patch_size : 4096 # patch size
 step_size : ${patch_size} # step_size
 
 patch : true # Set to True to perform the patching 
 seg : true # Set to True to perform tissue segmentation
+save_patches_to_image : true
 
 stitch : False # Set to True if the patches should be stitched together
 
@@ -28,17 +29,17 @@ no_auto_skip : false # Set to True to check and skip if a patched slide already 
 # Tissue segmentation setting
 seg_params:
   seg_level : -1
-  sthresh : 9
-  mthresh : 7
+  sthresh : 10
+  mthresh : 9
   close : 5
   use_otsu : False
   keep_ids : 'none'
   exclude_ids : 'none'
 
 filter_params:
-  a_t : 100
-  a_h : 16
-  max_n_holes : 8
+  a_t : 1
+  a_h : 5
+  max_n_holes : 100
 
 # Visualization settings
 vis_params:
