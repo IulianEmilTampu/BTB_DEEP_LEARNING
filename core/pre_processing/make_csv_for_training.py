@@ -28,7 +28,6 @@ from sklearn.model_selection import (
 
 # %% UTILITIES
 
-
 def case_id_from_anonymized_code(x: str):
     """
     The BTB anonymized codes are in the following format.
@@ -268,16 +267,21 @@ def get_repetition_split_v2(
         # ################## TEST SET
         # The number of splits for the first split (test and train_val) is computed based on the fraction
         # of the test set
-        n_splits = int(1 / cfg.test_fraction)
-        skf = StratifiedKFold(
-            n_splits=n_splits,
-            shuffle=True,
-            random_state=random_seed,
-        )
+        if cfg.test_fraction != 0:
+            n_splits = int(1 / cfg.test_fraction)
+            skf = StratifiedKFold(
+                n_splits=n_splits,
+                shuffle=True,
+                random_state=random_seed,
+            )
 
-        train_val_ix, test_ix = next(
-            skf.split(X=df_for_split.case_id, y=df_for_split.label)
-        )
+            train_val_ix, test_ix = next(
+                skf.split(X=df_for_split.case_id, y=df_for_split.label)
+            )
+        else:
+            # test fraction set to 0. All the samples used for training and validation
+            test_ix = []
+            train_val_ix = list(range(len(df_for_split)))
 
         # ################## TRAIN and VALIDATION
         df_train_val_for_split = df_for_split.loc[train_val_ix].reset_index()
@@ -315,7 +319,7 @@ def get_repetition_split_v2(
     else:
         raise ValueError("Not label-stratified split is not implemented.")
 
-    # build add folds columns to the dataframe and return
+    # add folds columns to the dataframe and return
     splitted_df = df.copy()
     for cv_f, s in enumerate(split_indexes):
         # create column for this fold
@@ -469,12 +473,15 @@ def save_for_clam(cfg, df, repetition_number):
             .rename(columns={"slide_id": "val"})
             .reset_index()
         )
-        test = (
-            gb.get_group("test")
-            .drop(columns=["set"])
-            .rename(columns={"slide_id": "test"})
-            .reset_index()
-        )
+        if cfg.test_fraction != 0:
+            test = (
+                gb.get_group("test")
+                .drop(columns=["set"])
+                .rename(columns={"slide_id": "test"})
+                .reset_index()
+            )
+        else:
+            test = pd.DataFrame(columns=['test'])
 
         # concatenate and save
         split_to_save = pd.concat([train, validation, test], axis=1).drop(
@@ -586,7 +593,7 @@ def main(cfg: DictConfig):
     # load BT_csv file
     btb_csv = pd.read_csv(cfg.btb_csv_path, encoding="ISO-8859-1")
     # make sure we have bools in USE_DURING_ANALYSIS and ACCEPTABLE_IMAGE_QUALITY columns
-    d = {"True": True, "False": False, "UNMATCHED_WSI": "UNMATCHED_WSI"}
+    d = {"True": True, "False": False, "UNMATCHED_WSI": "UNMATCHED_WSI",'TRUE':True, 'FALSE': False}
     btb_csv["USE_DURING_ANALYSIS"] = btb_csv["USE_DURING_ANALYSIS"].map(d)
     d = {
         "TRUE": True,
@@ -607,7 +614,29 @@ def main(cfg: DictConfig):
         btb_csv = btb_csv.loc[
             ~btb_csv[cfg.class_column_name].isin(cfg.classes_to_exclude)
         ]
+
     if cfg.site_to_exclude:
+        # check if the columns refering to the site is available. If not, print warning and infere.
+        if not cfg.site_column_name in btb_csv.columns:
+            warnings.warn(f'The given site name does not exist. Attempting to infere site using a site to anonym key mapping.')
+            # define site to anonymized code mapping
+            code_to_site = {
+            '5e4761c2' : 'LUND', 
+            'fc173989' : 'KS',
+            '103f236b' : 'GOT',
+            '6c730372' : 'LK',
+            '9a2a64c4' : 'UMEA',
+            '9fb809d6' : 'UPPSALA',
+            }
+            btb_csv["SITE"] = btb_csv.apply(
+            lambda x: code_to_site[site_id_from_anonymized_code(x.ANONYMIZED_CODE)], axis=1
+            )
+
+            # re-initialize the site column name 
+            cfg.site_column_name = 'SITE'
+
+        # remove specified sites
+        print(f'Removing slides belonging to sites: {cfg.site_to_exclude}')
         btb_csv = btb_csv.loc[~btb_csv[cfg.site_column_name].isin(cfg.site_to_exclude)]
 
     # create a new Dataframe with only the ANONYMIZED_CODE, CLASS_LABEL and SITE (if needed).
@@ -628,9 +657,9 @@ def main(cfg: DictConfig):
             lambda x: site_id_from_anonymized_code(x.slide_id), axis=1
         )
 
-    # # if creating splits for patient level features, compress the dataframe (one row per case_id with slide id == case id. THe Anonymized code is also trimmed to only have the site and subject codes).abs
-    print_df_summary(df_for_split)
+    # # if creating splits for patient level features, compress the dataframe (one row per case_id with slide id == case id. The Anonymized code is also trimmed to only have the site and subject codes)
     if cfg.feature_level == "patient":
+        print('Performing split on patient level features.')
         # compact information
         df_for_split["slide_id"] = df_for_split.apply(
             lambda x: "_".join(x.slide_id.split("_")[0:3]), axis=1
@@ -661,6 +690,7 @@ def main(cfg: DictConfig):
             )
     print("\n\n")
     print_df_summary(df_for_split)
+    print(df_for_split)
 
     # check if the slide_ids are available as extracted features
     if cfg.check_available_features:
