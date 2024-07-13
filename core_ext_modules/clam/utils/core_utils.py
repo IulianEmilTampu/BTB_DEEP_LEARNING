@@ -69,7 +69,7 @@ class EarlyStopping:
     def __call__(self, epoch, val_loss, model, ckpt_name = 'checkpoint.pt'):
 
         if epoch > self.min_epochs:
-            score = -val_loss
+            score = val_loss
 
             if self.best_score is None:
                 self.best_score = score
@@ -188,7 +188,7 @@ def train(datasets, cur, args):
     steps = len(train_loader) * (args.max_epochs+1) # this is for the lr scheduler
     print('Done!')
 
-        # LR scheduler
+    # LR scheduler
     if args.lr_scheduler:
         print('\nInit LR scheduler ...', end=' ')
         scheduler = get_lr_scheduler(optimizer,steps, args)
@@ -198,8 +198,7 @@ def train(datasets, cur, args):
 
     print('\nSetup EarlyStopping...', end=' ')
     if args.early_stopping:
-        early_stopping = EarlyStopping(patience = args.patience, stop_epoch=args.max_epochs, verbose = True)
-
+        early_stopping = EarlyStopping(patience = args.patience, stop_epoch=args.max_epochs, min_epochs=args.min_epochs, verbose = True)
     else:
         early_stopping = None
     print('Done!')
@@ -226,6 +225,7 @@ def train(datasets, cur, args):
     _, val_error, val_auc, _= summary(model, val_loader, args.n_classes)
     print('Val error: {:.4f}, ROC AUC: {:.4f}'.format(val_error, val_auc))
 
+    print(len(test_loader))
     results_dict, test_error, test_auc, acc_logger = summary(model, test_loader, args.n_classes)
     print('Test error: {:.4f}, ROC AUC: {:.4f}'.format(test_error, test_auc))
 
