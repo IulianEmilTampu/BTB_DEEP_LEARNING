@@ -609,13 +609,18 @@ def main(cfg: DictConfig):
         & (btb_csv.ACCEPTABLE_IMAGE_QUALITY == True)
     ]
 
-    # remove class_labels or sites from the dataset if requested
-    if cfg.classes_to_exclude:
+    # remove/include class_labels or sites from the dataset if requested
+    if cfg.classes_to_include:
+        btb_csv = btb_csv.loc[
+            btb_csv[cfg.class_column_name].isin(cfg.classes_to_include)
+        ]
+
+    elif cfg.classes_to_exclude:
         btb_csv = btb_csv.loc[
             ~btb_csv[cfg.class_column_name].isin(cfg.classes_to_exclude)
         ]
 
-    if cfg.site_to_exclude:
+    if any([cfg.site_to_exclude, cfg.site_to_include]):
         # check if the columns refering to the site is available. If not, print warning and infere.
         if not cfg.site_column_name in btb_csv.columns:
             warnings.warn(f'The given site name does not exist. Attempting to infere site using a site to anonym key mapping.')
@@ -635,9 +640,13 @@ def main(cfg: DictConfig):
             # re-initialize the site column name 
             cfg.site_column_name = 'SITE'
 
-        # remove specified sites
-        print(f'Removing slides belonging to sites: {cfg.site_to_exclude}')
-        btb_csv = btb_csv.loc[~btb_csv[cfg.site_column_name].isin(cfg.site_to_exclude)]
+        # remove/include specified sites
+        if cfg.site_to_include:
+            print(f'Including slides belonging to sites: {cfg.site_to_include}')
+            btb_csv = btb_csv.loc[btb_csv[cfg.site_column_name].isin(cfg.site_to_include)]
+        if cfg.site_to_exclude:
+            print(f'Removing slides belonging to sites: {cfg.site_to_exclude}')
+            btb_csv = btb_csv.loc[~btb_csv[cfg.site_column_name].isin(cfg.site_to_exclude)]
 
     # create a new Dataframe with only the ANONYMIZED_CODE, CLASS_LABEL and SITE (if needed).
     # Use the class_column to get the class_label at the right classification level.

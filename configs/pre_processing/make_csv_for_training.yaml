@@ -1,19 +1,19 @@
-btb_csv_path: '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/dataset_csv_file/BTB_AGGREGATED_CLINICAL_AND_WSI_INFORMATION_KS_LK_GOT_UM_LUND_ANONYM_20240405.csv'
-output_dir: '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs' # folder where to save output
+btb_csv_path: '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/dataset_csv_file/BTB_AGGREGATED_CLINICAL_AND_WSI_INFORMATION_KS_LK_GOT_UM_LUND_UPP_ANONYM_20240704.csv'
+output_dir: '/local/data2/iulta54/Data/BTB/experiments_csv_files/patient_level_features/test_20240713_for_testing' # folder where to save output
 
-experiment_name: splits_${classification_level}_${split_strategy}
+experiment_name: splits_${classification_level}_${split_strategy}_${feature_level}_features
 save_classification_task_yaml_template : True # saves a .yaml file that matches the clam/config/classification/task config files. Will not have the full paths to the .csv files dor the feature directory since these will change based on the computer the code is run on.
 
 # set if to save the files for a WSI level prediction of patient level prediction (used when training on per-patient stacked features)
-feature_level : wsi
+feature_level : patient
 
 # for which framework (hipt, and/or clam)
 framework : [clam]
 
 # split configurations
 split_strategy : npb # this specifies if the split is performed using cross validation strategy or nonparametric bootstrapping (npb). 
-npb_replicates : 1000 # Valid only when the split_strategy == npb, where this specifies the number of replicates to generate.
-test_fraction : 0.3 # valid for both cv and npb split_strategy
+npb_replicates : 1 # Valid only when the split_strategy == npb, where this specifies the number of replicates to generate.
+test_fraction : 0 # valid for both cv and npb split_strategy
 number_of_repetitions : 1 # valid only for cv split strategy 
 number_of_folds : 5 # valid only for cv split strategy
 random_seed : 29122009
@@ -22,18 +22,50 @@ validation_fraction : 0.2 # only used if the number_of_folds == 1
 # classification type and class split settings
 
 # Specify at which level the classification should be performed. 
-# tumor_category : using the TUMOR_CATEGORY column to get the class information
+# tumor_category : using the WHO_TUMOR_CATEGORY column to get the class information
 # tumor_family : using the WHO_TUMOR_FAMILY column to get the class information
-# tumor_type : using the WHO_TUMOR_type column to get the class information
+# tumor_type : using the WHO_TUMOR_TYPE column to get the class information
 
 classification_level : tumor_type
 class_column_name : WHO_TUMOR_TYPE
+min_nbr_subjects_per_class : -1 # Set the minimum number of subjects per class. Set to -1 to not use this as filter
+
 classes_to_exclude : []
-min_nbr_subjects_per_class : 10 # Set the minimum number of subjects per class. Set to -1 to not use this as filter
+# classes_to_include : []
+
+# CLASSES TO EXCLUDE IN THE OUT_OF_SITE SPLIT CREATION FOR THE MODEL GENERALIZATION RESULTS
+# classes_to_include: [
+#     'EPENDYMOMA',
+#     'GANGLIOGLIOMA',
+#     'MEDULLOBLASTOMA',
+#     'MEDULLOBLASTOMA_NON_WNT_NON_SHH',
+#     'PILOCYTIC_ASTROCYTOMA'
+# ]
+
+# classes_to_include: [
+#     'CIRCUMSCRIBED_ASTROCYTIC_GLIOMAS',
+#     'CRANIOPHARYNGIOMAS',
+#     'EPENDYMAL_TUMORS',
+#     'GLIONEURAL_NEURONAL_TUMORS',
+#     'MEDULLOBLASTOMAS_HISTOLOGYCALLY_DEFINED',
+#     'MEDULLOBLASTOMAS_MOLECULARLY_DEFINED',
+#     'OTHER_CNS_EMBRYONAL_TUMORS',
+#     'PEDIATRIC_TYPE_DIFFUSE_HIGH_GRADE_GLIOMAS'
+# ]
+
+# classes_to_include: [
+#     'CNS_EMBRYONAL_TUMORS',
+#     'GLIOMAS_GLIONEURAL_NEURONAL_TUMORS',
+#     'TUMORS_OF_THE_SELLAR_REGION'
+# ]
+
+
 
 # site (centre) split settings TODO - make split take into account the site
 site_column_name : SITE
-site_to_exclude : []
+# available KS LUND GOT LK UMEA UPPSALA
+site_to_exclude : [] 
+site_to_include :  ['LUND', 'GOT', 'LK', 'UMEA'] 
 
 # stratification settings
 class_stratification : True
@@ -41,7 +73,7 @@ site_stratification : False
 
 # set if to filter those files that do not have extracted features
 check_available_features : True 
-feature_dir : /local/data2/iulta54/Data/BTB/histology_features/clam_features_mag_x20_size_224/vit_uni/pt_files # Path to where the extracted .pt feature files are saved. 
+feature_dir : /local/data2/iulta54/Data/BTB/histology_features/patient_level_features/clam_features_mag_x20_size_224/vit_uni/pt_files # Path to where the extracted .pt feature files are saved. 
 skip_missing_features : True # Set to True to raise an error when not all the slides_ids have extracted features. This is useful since will make sure that all the files are available for training, val and test.
 
 
