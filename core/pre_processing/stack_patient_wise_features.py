@@ -7,9 +7,8 @@ import pathlib
 from tqdm import tqdm
 
 # %% PATHS
-
-PER_WSI_FEATURES = '/local/data2/iulta54/Data/BTB/histology_features/clam_features_mag_x20_size_224/vit_hipt/pt_files'
-PER_SUBJECT_FEATURES_OUTPUT_DIR = '/local/data2/iulta54/Data/BTB/histology_features/clam_per_subject_features_mag_x20_size_224/vit_hipt/pt_files'
+PER_WSI_FEATURES = '/local/data2/iulta54/Data/BTB/histology_features/clam_features_mag_x20_size_224/vit_conch/pt_files'
+PER_SUBJECT_FEATURES_OUTPUT_DIR = '/local/data2/iulta54/Data/BTB/histology_features/clam_per_subject_features_mag_x20_size_224/vit_conch/pt_files'
 
 # make output dir if not existing
 pathlib.Path(PER_SUBJECT_FEATURES_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)

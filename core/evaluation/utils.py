@@ -234,9 +234,11 @@ def random_accuracy(true_labels, n:int=100):
     return np.mean(rnd_acc)
 
 def plotConfusionMatrix(
-    GT,
-    PRED,
-    classes,
+    GT=None,
+    PRED=None,
+    classes=None,
+    from_cm:bool=False,
+    cm=None,
     cmap=plt.cm.Blues,
     savePath=None,
     saveName=None,
@@ -270,7 +272,8 @@ def plotConfusionMatrix(
 
 
     # compute confusion matrix
-    cm = get_confusion_matrix(GT, PRED)
+    if not from_cm:
+        cm = get_confusion_matrix(GT, PRED)
 
     fig = plt.figure(figsize=(10, 10))
     plt.imshow(cm, interpolation=None, cmap=cmap)
@@ -285,7 +288,7 @@ def plotConfusionMatrix(
         plt.text(
             j,
             i,
-            f'{int(cm[i, j]):d}',
+            f'{cm[i, j]:0.2f}',
             horizontalalignment="center",
             verticalalignment="center",
             color="white" if cm[i, j] > thresh else "black",
@@ -297,8 +300,12 @@ def plotConfusionMatrix(
     plt.xlabel("Prediction", fontsize=figure_setting['ylabel_font_size'])
 
     acc = 100 * (np.trace(cm) / np.sum(cm))
-    mcc = matthews_corrcoef(GT.argmax(axis=-1), PRED.argmax(axis=-1))
-    if compute_random_accuracy:
+    if not from_cm:
+        mcc = matthews_corrcoef(GT.argmax(axis=-1), PRED.argmax(axis=-1))
+    else:
+        mcc = 0
+
+    if all([compute_random_accuracy, not from_cm]):
         rnd_acc = random_accuracy(list(np.argmax(GT, axis=-1))) 
         plt.title(f"Accuracy: {acc:03.2f} (random Acc: {rnd_acc*100:03.2f}), MCC: {mcc:3.2f}", fontsize=figure_setting['title_font_size'])
     else:

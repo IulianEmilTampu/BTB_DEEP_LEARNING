@@ -14,7 +14,7 @@ def rearrange_dataset_summary(df):
     df_rearranged = copy.deepcopy(df)
 
     # get anonymized subject id from the anonymized code.
-    get_subjects_from_anonymized_code = lambda x : x.split('_')[2]
+    get_subjects_from_anonymized_code = lambda x : '_'.join(x.split('_')[2:4])
     df_rearranged['SUBJECT_ID_ANONYMIZED'] = df_rearranged.ANONYMIZED_CODE.apply(get_subjects_from_anonymized_code)
 
     # get anonymized site id from the anonymized code.
@@ -63,7 +63,7 @@ def print_dataset_counts(df, pm='\u00B1'):
     min_age = df_temp.AGE_YEARS.dropna().astype(int).min()
     max_age = df_temp.AGE_YEARS.dropna().astype(int).max()
 
-    print(f'Found {len(df_temp)} unique subjects (age [y]: {mean_age:0.2f} {pm} {std_age:0.2f}, range [{min_age:0.2f}, {max_age:0.2f}])')
+    print(f'Found {len(df_temp)} unique subjects-diagnosis pairs (age [y]: {mean_age:0.2f} {pm} {std_age:0.2f}, range [{min_age:0.2f}, {max_age:0.2f}])')
 
     # # print per gender information
     for g, n in zip(('M', 'F', 'NotAvailable'), ('Male', 'Female', 'NA')):
@@ -83,13 +83,15 @@ def print_dataset_counts(df, pm='\u00B1'):
 
     # print per site information
     code_to_site = {
-            '2233' : 'LUND', 
-            '1036' : 'KS',
-            '7371' : 'GOT',
-            '4812' : 'LK',
-            '6218' : 'UMEA',
+            '5e4761c2' : 'LUND', 
+            'fc173989' : 'KS',
+            '103f236b' : 'GOT',
+            '6c730372' : 'LK',
+            '9a2a64c4' : 'UMEA',
+            '9fb809d6' : 'UPPSALA',
         }
-    per_site_count = df_temp.groupby(['SITE']).agg({'SUBJECT_ID_ANONYMIZED' : lambda x : len(pd.unique(x)), 'ANONYMIZED_CODE': lambda x : len(x), 'GENDER' : lambda x : {'M': sum(x == 'M'), 'F': sum(x=='F'), 'NA': sum(x=='NotAvailable')}})
+    len_characters_site = max([len(s) for s in code_to_site.keys()])
+    per_site_count = df_temp.groupby(['SITE']).agg({'SUBJECT_ID_ANONYMIZED' : lambda x : len(pd.unique(x)), 'ANONYMIZED_CODE': lambda x : sum(x), 'GENDER' : lambda x : {'M': sum(x == 'M'), 'F': sum(x=='F'), 'NA': sum(x=='NotAvailable')}})
     
     for c, n in code_to_site.items():
         try:
@@ -98,22 +100,22 @@ def print_dataset_counts(df, pm='\u00B1'):
             nbr_female = per_site_count.loc[c, "GENDER"]["F"]
             nbr_NA = per_site_count.loc[c, "GENDER"]["NA"]
             glasses = per_site_count.loc[c, "ANONYMIZED_CODE"]
-            print(f'Site: {n:5s}: {subjects:4d} subjects (M: {nbr_male}, F: {nbr_female}, NA: {nbr_NA}) ({glasses:4d} glasses)')
+            print(f'Site: {n:{len_characters_site}s}: {subjects:4d} subjects-diagnosis pairs (M: {nbr_male}, F: {nbr_female}, NA: {nbr_NA}) ({glasses:4d} glasses)')
         except:
             continue
 # %% PATHS
-DATASET_CSV_PATH = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/dataset_csv_file/BTB_AGGREGATED_CLINICAL_AND_WSI_INFORMATION_KS_LK_GOT_UM_LUND_ANONYM_20240405.csv'
+DATASET_CSV_PATH = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/dataset_csv_file/BTB_AGGREGATED_CLINICAL_AND_WSI_INFORMATION_KS_LK_GOT_UM_LUND_UPP_ANONYM_20240704.csv'
 dataset_summary = pd.read_csv(DATASET_CSV_PATH, encoding="ISO-8859-1")
 print(f'Found {len(dataset_summary)} entries.')
 
 # %% REFINE TRUE FALSE 
-d = {'True': True, 'False': False, 'UNMATCHED_WSI': 'UNMATCHED_WSI'}
+d = {'True': True, 'False': False, 'UNMATCHED_WSI': 'UNMATCHED_WSI','TRUE':True, 'FALSE':False}
 dataset_summary['USE_DURING_ANALYSIS'] = dataset_summary['USE_DURING_ANALYSIS'].map(d)
 d = {'TRUE': True, 'FALSE': False, 'UNMATCHED_WSI': 'UNMATCHED_WSI', 'UNMATCHED':'UNMATCHED'}
 dataset_summary['ACCEPTABLE_IMAGE_QUALITY'] = dataset_summary['ACCEPTABLE_IMAGE_QUALITY'].map(d)
     
-# %% REMOVE SUBJECTS THAT SHOULD NOT BE THERE (BTB2024_2233_6329_9960_9231, BTB2024_2233_5081_5038_9231)
-to_remove = ('BTB2024_2233_6329_9960_9231', 'BTB2024_2233_5081_5038_9231')
+# %% REMOVE SUBJECTS THAT SHOULD NOT BE THERE 
+to_remove = ('BTB2024_5e4761c2_0a51bcc55ec3_c6636fd9_917f8a98_2ee04c52', 'BTB2024_5e4761c2_44972dc52dd6_c6636fd9_b0f1699f_2ee04c52')
 dataset_summary = dataset_summary.loc[~dataset_summary.ANONYMIZED_CODE.isin(to_remove)]
 
 # %% REMOVE WSIs THAT ARE UNMATCHED
@@ -126,24 +128,51 @@ print_dataset_counts(dataset_summary)
 # %% PRINT MISSING DIAGNOSIS
 not_for_analysis = dataset_summary.loc[dataset_summary.USE_DURING_ANALYSIS != True]
 dataset_summary = dataset_summary.loc[dataset_summary.USE_DURING_ANALYSIS == True]
-print(f'Removing {len(not_for_analysis)} given USE_DURING_ANALYSIS != True')
-print('\n############ REMOVING ############\n')
+print(f'\n\nRemoving {len(not_for_analysis)} given USE_DURING_ANALYSIS != True')
+print('############ REMOVING ############\n')
 print_dataset_counts(not_for_analysis)
-print('\n############ REMAINING ############n\n')
+print('\n############ REMAINING ############\n')
 print_dataset_counts(dataset_summary)
 
 # %% PRINT QUALITY CHECK FAIL 
 not_for_analysis = dataset_summary.loc[dataset_summary.ACCEPTABLE_IMAGE_QUALITY != True]
 dataset_summary = dataset_summary.loc[dataset_summary.ACCEPTABLE_IMAGE_QUALITY == True]
-print(f'Removing {len(not_for_analysis)} given ACCEPTABLE_IMAGE_QUALITY != True')
-print('\n############ REMOVING ############\n')
+print(f'\n\nRemoving {len(not_for_analysis)} given ACCEPTABLE_IMAGE_QUALITY != True')
+print('############ REMOVING ############\n')
 print_dataset_counts(not_for_analysis)
 print('\n############ REMAINING ############n\n')
 print_dataset_counts(dataset_summary)
+
+
+# %% PRINT THOSE THAT HAVE HAVE EXTRACTED FEATURES 
+PATH_TO_PATCHES = '/local/data2/iulta54/Data/BTB/histology_features/wsi_level_features/clam_features_mag_x20_size_224/vit_uni/h5_files'
+PATH_TO_FEATURES = '/local/data2/iulta54/Data/BTB/histology_features/wsi_level_features/clam_features_mag_x20_size_224/vit_uni/pt_files'
+
+patch_list = [i.split('.')[0] for i in os.listdir(PATH_TO_PATCHES)]
+feature_file_list = [i.split('.')[0] for i in os.listdir(PATH_TO_FEATURES)]
+
+ids_without_patches = dataset_summary.loc[~dataset_summary.ANONYMIZED_CODE.isin(patch_list)]
+dataset_summary = dataset_summary.loc[dataset_summary.ANONYMIZED_CODE.isin(patch_list)]
+print(f'\n\nRemoving {len(ids_without_patches)} given no PATCHES were created')
+print('############ REMOVING ############\n')
+print_dataset_counts(ids_without_patches)
+print('\n############ REMAINING ############n\n')
+print_dataset_counts(dataset_summary)
+print('\n\n')
+
+# ids_without_features = dataset_summary.loc[~dataset_summary.ANONYMIZED_CODE.isin(feature_file_list)]
+# dataset_summary = dataset_summary.loc[dataset_summary.ANONYMIZED_CODE.isin(feature_file_list)]
+# print(f'Removing {len(ids_without_features)} given no FEATURES were created')
+# print('\n############ REMOVING ############\n')
+# print_dataset_counts(ids_without_features)
+# print('\n############ REMAINING ############n\n')
+# print_dataset_counts(dataset_summary)
+
+
 # %% PRINT DIAGNOSIS COUNTS (at all the levels)
-get_subjects_from_anonymized_code = lambda x : x.split('_')[2]
+get_subjects_from_anonymized_code = lambda x : '_'.join(x.split('_')[2:4])
 dataset_summary['SUBJECT_ID'] = dataset_summary.ANONYMIZED_CODE.apply(get_subjects_from_anonymized_code)
-get_glass_id_from_anonymized_code = lambda x : x.split('_')[3]
+get_glass_id_from_anonymized_code = lambda x : x.split('_')[4]
 dataset_summary['GLASS_ID_CLINICAL'] = dataset_summary.ANONYMIZED_CODE.apply(get_glass_id_from_anonymized_code)
 
 # build counts for each TUMOR cluster (category, family and type)
@@ -180,6 +209,27 @@ for d in ('TUMOR_CATEGORY', 'TUMOR_FAMILY', 'TUMOR_TYPE'):
         glasses = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'GLASS_ID_CLINICAL_{d}_COUNT'].max()
         print(f'    {l:70s}: {subjects} subjects, {glasses} glasses')
 
+# %% PRINT BY FILTERING BASED ON MIN NBR SUBJECTS 
+print('\n\n\n')
+min_nbr_subjects = 10
+
+for d in ('TUMOR_CATEGORY', 'TUMOR_FAMILY', 'TUMOR_TYPE'):
+    print(f'{d} (with nbr. subjects >= {min_nbr_subjects})')
+    # get unique labels for this level
+    unique_labels = pd.unique(for_analysis[f'WHO_{d}'])
+    # sort the labels based in the number of subjects
+    nbr_subjects = [for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_ID_{d}_COUNT'].max() for l in unique_labels]
+    nbr_glasses = [for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'GLASS_ID_CLINICAL_{d}_COUNT'].max() for l in unique_labels]
+    
+    unique_labels = [x for (y,x) in sorted(zip(nbr_subjects, unique_labels), key=lambda pair: pair[0])]
+    nbr_glasses
+    # print stats for each 
+    for l in unique_labels:
+        subjects = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_ID_{d}_COUNT'].max()
+        glasses = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'GLASS_ID_CLINICAL_{d}_COUNT'].max()
+        if subjects >= min_nbr_subjects:
+            print(f'    {l:70s}: {subjects} subjects, {glasses} glasses')
+
 # 
 # tumor_category_family_type_aggregation = for_analysis.groupby(['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE'], dropna=False).agg({'SUBJECT_ID_TUMOR_CATEGORY_COUNT': lambda x : max(x), 
 #                                                                                                                                              'GLASS_ID_CLINICAL_TUMOR_CATEGORY_COUNT': lambda x : max(x),
@@ -189,17 +239,14 @@ for d in ('TUMOR_CATEGORY', 'TUMOR_FAMILY', 'TUMOR_TYPE'):
 #                                                                                                                                              'GLASS_ID_CLINICAL_TUMOR_TYPE_COUNT': lambda x : max(x),
 #                                                                                                                                              })
 # print(tumor_category_family_type_aggregation)
+# %% PLOT SUNBURST OF TUMOR DIAGNOSIS
+import plotly.express as px
+import numpy as np
 
-# %% PRINT THOSE THAT HAVE EXTRACTED FEATURES
+# built df 
+df = for_analysis.groupby(['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY','WHO_TUMOR_TYPE']).count().reset_index(level=[0,1,2])
+df = df.loc[df.GENDER >= 10]
+df['FRACTION'] = df.apply(lambda x : f'{x.GENDER / df.GENDER.sum() * 100:0.2f}', axis=1)
 
-PATH_TO_PATCHES = '/run/media/iulta54/Expansion/Datasets/BTB/SCRIPTS/pre_processing/outputs/clam/BTB_patch_extraction_x20_224/2024-04-19/patches'
-PATH_TO_FEATURES = '/local/data2/iulta54/Data/BTB/histology_features/clam_features_mag_x20_size_224/vit_hipt/pt_files'
-
-patch_list = [i.split('.')[0] for i in os.listdir(PATH_TO_PATCHES)]
-feature_file_list = [i.split('.')[0] for i in os.listdir(PATH_TO_FEATURES)]
-
-ids_without_patches = dataset_summary.loc[~dataset_summary.ANONYMIZED_CODE.isin(patch_list)]
-ids_without_features = dataset_summary.loc[~dataset_summary.ANONYMIZED_CODE.isin(feature_file_list)]
-
-print(f'Glasses with missing patching: {len(ids_without_patches)}')
-print(f'Glasses with missing features: {len(ids_without_features)}')
+fig = fig = px.sunburst(df, path=['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY','WHO_TUMOR_TYPE'], values='FRACTION')
+fig.show()

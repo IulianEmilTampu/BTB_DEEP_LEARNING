@@ -20,17 +20,13 @@ import matplotlib.patches as mpatches
 import matplotlib.patheffects as path_effects
 from matplotlib.patches import Rectangle
 import matplotlib.patheffects as pe
-from scipy import stats
-import itertools
 import scipy.stats as st
+import itertools
 
-# local imports
-from utils import aggregate_evaluation_for_metric
 
 print('Plotting summary models performance from aggregated .csv file.')
 
 # %% UTILITIES
-
 def make_summary_plot(df, plot_settings, df_ensemble=None):
     # check if the data is available for all the box plots
     expected_plots = [
@@ -159,13 +155,6 @@ def make_summary_plot(df, plot_settings, df_ensemble=None):
     else:
         box_plot.get_legend().remove()
 
-
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-import matplotlib as mpl
-import matplotlib.lines as mlines
-
 def make_summary_string(x):
     # get all the information needed
     cl = x.classification_level
@@ -176,15 +165,15 @@ def make_summary_string(x):
 
 # %% PATHS
 
-AGGREGATED_CSV_FILE = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_07_13_generalization_models_and_results/aggregated_evaluation_LK_UM_GOT_LU_20240716.csv'
+AGGREGATED_CSV_FILE = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_07_07/aggregated_evaluation_20240712_cmal_abmil.csv'
 TIME_STAMP = pathlib.Path(AGGREGATED_CSV_FILE).parts[-1].split('.')[0].split('_')[-1]
-SAVE_PATH = pathlib.Path(os.path.join(os.path.dirname(AGGREGATED_CSV_FILE), f'plots_aggregated_evaluation_abmil_clam_LK_UM_GOT_LU_{TIME_STAMP}'))
+SAVE_PATH = pathlib.Path(os.path.join(os.path.dirname(AGGREGATED_CSV_FILE), f'plots_aggregated_evaluation_{TIME_STAMP}'))
 SAVE_PATH.mkdir(parents=True, exist_ok=True)
 
 # load aggregated file
 summary_evaluation_df = pd.read_csv(AGGREGATED_CSV_FILE)
 
-# %% PLOT (no site information)
+# %% PLOT
 '''
 Here for each of the classification_levels (category, family and type), plot the models performance as box-plots
 '''
@@ -286,7 +275,7 @@ for metric, metric_specs in metric_and_text.items():
         plt.close(fig)
     else:
         plt.show()
-# %% MAKE SUMMARY TEXT (no site information)
+# %% MAKE SUMMARY TEXT 
 
 # define the order in the text
 classification_level_order = ["tumor_category", "tumor_family", "tumor_type"]
@@ -294,12 +283,25 @@ classification_level_order = ["tumor_category", "tumor_family", "tumor_type"]
 nbr_classes = [pd.unique(summary_evaluation_df.loc[summary_evaluation_df.classification_level==c].nbr_classes)[0] for c in classification_level_order]
 model_order = ["abmil","clam"]
 feature_extractor_order = ['resnet50', 'vit_conch', 'vit_uni']
-metrics = ['mcc','balanced_accuracy', 'f1-score', 'auc']
+metrics = ['mcc', 'auc', 'f1-score', 'balanced_accuracy']
+
+def aggregate_evaluation_for_mectric(x, pm_symbol = f" \u00B1 " , format='0.2', new_line_symbol='<br>'):
+    mean = np.mean(x)
+    std = np.std(x)
+    min = np.min(x)
+    max = np.max(x)
+    low_95ci, high_95ci = st.t.interval(0.95, len(x)-1, loc=np.nanmean(x), scale=st.sem(x, nan_policy='omit'))
+
+
+    # string for printing
+    # return f"{mean:{format}f}{pm_symbol}{std:{format}f}\nrange [{min:{format}f}, {max:{format}f}]\nquantile [{min_05_q:{format}f}, {max_95_q:{format}f}]"
+    return f"{mean:{format}f}{pm_symbol}{std:{format}f}{new_line_symbol}[{low_95ci:{format}f}, {high_95ci:{format}f}]"
+
 
 # define aggregation dictionary to pass to the .agg groupby
 aggregation_dict = dict.fromkeys(metrics)
 for m in aggregation_dict.keys():
-    aggregation_dict[m] = lambda x : aggregate_evaluation_for_metric(x)
+    aggregation_dict[m] = lambda x : aggregate_evaluation_for_mectric(x)
 
 
 # compress summary_evaluation_df to be able to plot it using to_markdown
@@ -308,6 +310,3 @@ print(compressed_summary.to_markdown(tablefmt="pipe", stralign='center'))
 # save to file
 with open(os.path.join(SAVE_PATH, 'table_summary_evaluation.md'), 'w') as f:
     print(compressed_summary.to_markdown(tablefmt="pipe", stralign='center'), file=f)
-
-
-# %%

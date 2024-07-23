@@ -19,7 +19,7 @@ import omegaconf
 from omegaconf import DictConfig, open_dict, OmegaConf
 
 # local imports 
-from utils import plotConfusionMatrix, get_performance_metrics, plotROC
+from utils import plotConfusionMatrix, get_performance_metrics, plotROC, get_confusion_matrix
 
 # %% UTILITIES
 
@@ -74,7 +74,6 @@ def main(cfg:DictConfig):
     print(f'Found {len(process_stack)} models to evaluate.')
 
     # % define plotting configuration
-
     roc_figure_setting = {
             'average_roc_line_width':4,
             'average_roc_line_style':':',
@@ -105,9 +104,13 @@ def main(cfg:DictConfig):
     # % loop through the process stack and evaluate
     with tqdm(total=len(process_stack), unit='model') as model_tqdm:
         for trained_model_dir in process_stack:
-            # create save path 
-            SAVE_PATH = Path(trained_model_dir, 'summary_evaluation')
-            SAVE_PATH.mkdir(parents=True, exist_ok=True)
+            # create save path
+            if not cfg.specific_evaluation_folder:
+                SAVE_PATH = Path(trained_model_dir, 'summary_evaluation')
+                SAVE_PATH.mkdir(parents=True, exist_ok=True)
+            else:
+                SAVE_PATH = Path(trained_model_dir,cfg.specific_evaluation_folder, 'summary_evaluation')
+                SAVE_PATH.mkdir(parents=True, exist_ok=True)
 
             # load training configuration
             training_cfg = omegaconf.OmegaConf.load(pathlib.Path(trained_model_dir, f'hydra_config.yaml'))
@@ -135,11 +138,15 @@ def main(cfg:DictConfig):
             mcc_list = []
             class_acc_list = []
             balanced_acc = []
+            cumulative_confusion_matrix = []
 
             with tqdm(total=nbr_folds, unit='folds', leave=False) as fold_tqdm:
                 for i in range(nbr_folds):
                     # open summary file
-                    evaluation_file = pathlib.Path(trained_model_dir, f'split_{i}_results.pkl')
+                    if not cfg.specific_evaluation_folder:
+                        evaluation_file = pathlib.Path(trained_model_dir, f'split_{i}_results.pkl')
+                    else:
+                        evaluation_file = pathlib.Path(trained_model_dir, cfg.specific_evaluation_folder, f'split_{i}_results.pkl')
                     with open(evaluation_file, 'rb') as f:
                         results = pickle.load(f)
                         res_df = pd.DataFrame.from_dict(results, orient='index')
@@ -182,6 +189,9 @@ def main(cfg:DictConfig):
                             savePath=SAVE_PATH,
                             saveName='ROC_k'+str(i))
                     
+                    # save cumulative confusion matrix
+                    cumulative_confusion_matrix.append(get_confusion_matrix(GT, PRED))
+
                     fold_tqdm.update()
             
             # % SAVE SUMMARY IN A .csv FILE THAT CAN BE AGGREGATED WITH ALL THE OTHER RUNS
@@ -190,7 +200,6 @@ def main(cfg:DictConfig):
 
             # gather information
             for f in range(nbr_folds):
-
                 temp_dict = {
                 'model': 'clam' if 'model_type' in training_cfg.keys() else 'hipt',
                 'aggregation': training_cfg.model_type if 'model_type' in training_cfg.keys() else 'abmil',
@@ -224,6 +233,24 @@ def main(cfg:DictConfig):
             # save for aggregation
             if cfg.aggregate_evaluation_csv_files and len(process_stack) > 1:
                 for_aggregation.append(summary_df)
+            
+            # save also cumulative confusion matrix
+            cumulative_confusion_matrix = np.stack(cumulative_confusion_matrix).mean(axis=0)
+            # normalize each cell using the sum of the row. 
+            # Compute the sum of each row
+            row_sums = cumulative_confusion_matrix.sum(axis=1)
+            # Divide each element by the sum of its corresponding row
+            cumulative_confusion_matrix = cumulative_confusion_matrix / row_sums[:, np.newaxis]
+            
+            print('Plotting cumulative CF matrix')
+            plotConfusionMatrix(from_cm=True, 
+                                cm = cumulative_confusion_matrix,
+                                classes=unique_classes,
+                                figure_setting=cm_figure_settings,
+                                compute_random_accuracy=False,
+                                savePath=SAVE_PATH,
+                                saveName='Cumulative_CF',
+                                draw=False)
             
             if cfg.print_single_model_summary:
                 # % PRINT AVERAGE OVER THE FOLDS
@@ -259,9 +286,9 @@ def main(cfg:DictConfig):
     if cfg.aggregate_evaluation_csv_files and len(process_stack) > 1:
         summary_evaluation_df = pd.concat(for_aggregation, axis=0, ignore_index=True)
 
-    aggregated_file_path = os.path.join(cfg.aggregation_save_dir, f'aggregated_evaluation_{datetime.now().strftime("%Y%m%d")}.csv')
-    summary_evaluation_df.to_csv(aggregated_file_path)
-    print(f'Aggregated file save as: {aggregated_file_path}')
+        aggregated_file_path = os.path.join(cfg.aggregation_save_dir, f'aggregated_evaluation_{datetime.now().strftime("%Y%m%d")}.csv')
+        summary_evaluation_df.to_csv(aggregated_file_path)
+        print(f'Aggregated file save as: {aggregated_file_path}')
 
 # %% 
 

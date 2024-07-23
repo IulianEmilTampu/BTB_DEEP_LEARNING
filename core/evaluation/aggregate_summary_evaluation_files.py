@@ -6,7 +6,7 @@ from datetime import datetime
 
 # %% PATHS
 print('Aggregation of summary_evaluation.csv files.')
-OUTPUT_TRAINING_DIRS = '/flush/iulta54/Research/P11-BTB_DEEP_LEARNING/outputs/classification'
+OUTPUT_TRAINING_DIRS = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_07_07'
 SAVE_PATH = OUTPUT_TRAINING_DIRS
 
 # %% SCOUT THE OUTPUT_TRAINING_DIRS for summary_evaluation.csv files
@@ -32,12 +32,12 @@ Classification level flag
  '''
 
 def refine_classification_level(x):
-    if x.classification_level == 'Category classification':
-        return 'category'
-    elif x.classification_level == 'Family classification':
-        return 'family'
-    elif x.classification_level == 'Type classification':
-        return 'type'
+    if any([x.classification_level == 'Category classification', x.classification_level == 'tumor_category']):
+        return 'tumor_category'
+    elif any([x.classification_level == 'Family classification',x.classification_level == 'tumor_family']):
+        return 'tumor_family'
+    elif any([x.classification_level == 'Type classification', x.classification_level == 'tumor_type']):
+        return 'tumor_type'
     else:
         return None
 

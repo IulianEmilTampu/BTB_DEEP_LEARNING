@@ -15,7 +15,7 @@ from utils import aggregate_evaluation_for_metric
 
 # %% PATHS
 
-AGGREGATED_CSV_FILE = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_07_07/aggregated_evaluation_20240716.csv'
+AGGREGATED_CSV_FILE = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_07_07_classification_models_and_results/aggregated_evaluation_20240716.csv'
 TIME_STAMP = pathlib.Path(AGGREGATED_CSV_FILE).parts[-1].split('.')[0].split('_')[-1]
 SAVE_PATH = pathlib.Path(os.path.join(os.path.dirname(AGGREGATED_CSV_FILE), f'per_class_metrics_abmil_clam_{TIME_STAMP}'))
 SAVE_PATH.mkdir(parents=True, exist_ok=True)
@@ -38,4 +38,13 @@ with open(os.path.join(SAVE_PATH, 'table_summary_per_class_evaluation.md'), 'w')
     print(aggregated_information.to_markdown(tablefmt="pipe", stralign='center'), file=f)
 
 
-# %%
+# %% SAVE PER METRIC
+
+metrics = ['f1', 'precision', 'recall']
+
+for metric in metrics:
+    # drop all the columns that do not have the metric in the text
+    temp = aggregated_information.loc[:, aggregated_information.columns.str.contains(metric)]
+    # save 
+    with open(os.path.join(SAVE_PATH, f'table_summary_per_class_evaluation_{metric}.md'), 'w') as f:
+        print(temp.to_markdown(tablefmt="pipe", stralign='center'), file=f)
