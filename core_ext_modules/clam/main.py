@@ -39,7 +39,7 @@ def seed_torch(seed=7):
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
-def check_splits(cfg:DictConfig):
+def check_splits(cfg:DictConfig, check_available_features:bool=True):
     '''
     Utility that checks:
     1. that the given split directory exists
@@ -59,21 +59,23 @@ def check_splits(cfg:DictConfig):
         raise ValueError(f'Some of the split files were not found: {[i for i, s in enumerate(folds_check) if not s]}')
     
     # check that the slide ids are available in the feature folder
-    for f in range(cfg.k):
-        # load the .csv split file 
-        split_file = pd.read_csv(os.path.join(cfg.task.split_dir, f'split_{f}.csv'))
-        # check that the training, val and test columns are available, and check if the features are available
-        for c in ['train', 'val', 'test']:
-            if c not in split_file.columns:
-                raise ValueError(f'The {c} column is not available as a column in the split .csv file for split nbr {f}.')
-            else:
-                # check features
-                slide_ids = split_file[c].dropna().reset_index(drop=True).tolist()
-                feature_check = [os.path.isfile(os.path.join(cfg.task.data_root_dir, 'pt_files', f'{sid}.pt')) for sid in slide_ids]
-                if not all(feature_check):
-                    raise ValueError(f'Missing feature files for {feature_check.count(False)} slide_ids for set {c} and split {f}.')
-                    # print(f'Missing feature files for {feature_check.count(False)} slide_ids for set {c} and split {f}.')
-    
+    if check_available_features:
+        for f in range(cfg.k):
+            # load the .csv split file 
+            split_file = pd.read_csv(os.path.join(cfg.task.split_dir, f'split_{f}.csv'))
+            # check that the training, val and test columns are available, and check if the features are available
+            for c in ['train', 'val', 'test']:
+                if c not in split_file.columns:
+                    raise ValueError(f'The {c} column is not available as a column in the split .csv file for split nbr {f}.')
+                else:
+                    # check features
+                    slide_ids = split_file[c].dropna().reset_index(drop=True).tolist()
+                    feature_check = [os.path.isfile(os.path.join(cfg.task.data_root_dir, 'pt_files', f'{sid}.pt')) for sid in slide_ids]
+                    if not all(feature_check):
+                        raise ValueError(f'Missing feature files for {feature_check.count(False)} slide_ids for set {c} and split {f}.')
+                        # print(f'Missing feature files for {feature_check.count(False)} slide_ids for set {c} and split {f}.')
+    else:
+        print(f'Skipping feature check.')
     # if survives until here, the check is passed
     print('Check of split files passed!')
 
@@ -91,7 +93,7 @@ def build_experiment_name(cfg):
     features = cfg.feature_extractor
     magnification = f'mag_{cfg.magnification}'
     patch_size = f'ps_{cfg.patch_size}'
-    aggregator = f'agg_{cfg.model_type}'
+    aggregator = f'agg_{cfg.model_type}_{cfg.model_size if cfg.model_type != "abmil" else "none"}'
     lr = f'lr_{cfg.lr:.0E}'
     scheduler = f'sch_{cfg.lr_scheduler}'
     opt = f'opt_{cfg.opt}'
@@ -176,7 +178,7 @@ def main(cfg:DictConfig):
         pathlib.Path(cfg.results_dir).mkdir(parents=True, exist_ok=False)
 
     # check if the given splits
-    check_splits(cfg)
+    check_splits(cfg, check_available_features=False)
     settings.update({'split_dir': cfg.task.split_dir})
 
     # with open(cfg.results_dir + '/experiment_{}.txt'.format(cfg.exp_code), 'w') as f:
