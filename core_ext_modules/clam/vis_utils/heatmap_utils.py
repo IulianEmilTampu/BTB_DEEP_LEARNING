@@ -16,6 +16,7 @@ from scipy.stats import percentileofscore
 import math
 from utils.file_utils import save_hdf5
 from scipy.stats import percentileofscore
+import tqdm
 
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -53,38 +54,39 @@ def compute_from_patches(wsi_object, clam_pred=None, model=None, feature_extract
     
     roi_dataset = Wsi_Region(wsi_object, **wsi_kwargs)
     roi_loader = get_simple_loader(roi_dataset, batch_size=batch_size, num_workers=8)
-    print('total number of patches to process: ', len(roi_dataset))
+    print('\nFeature extractor')
+    print('Total number of patches to process: ', len(roi_dataset))
     num_batches = len(roi_loader)
-    print('number of batches: ', len(roi_loader))
+    print('Number of batches: ', len(roi_loader))
     mode = "w"
-    for idx, (roi, coords) in enumerate(roi_loader):
-        roi = roi.to(device)
-        coords = coords.numpy()
-        
-        with torch.no_grad():
-            features = feature_extractor(roi)
+    with tqdm.tqdm(total=len(roi_loader), unit='roi') as tqdm_roi:
+        for (roi, coords) in roi_loader:
+            roi = roi.to(device)
+            coords = coords.numpy()
+            
+            with torch.no_grad():
+                features = feature_extractor(roi)
 
-            if attn_save_path is not None:
-                A = model(features, attention_only=True)
-           
-                if A.size(0) > 1: #CLAM multi-branch attention
-                    A = A[clam_pred]
+                if attn_save_path is not None:
+                    A = model(features, attention_only=True)
+            
+                    if A.size(0) > 1: #CLAM multi-branch attention
+                        A = A[clam_pred]
 
-                A = A.view(-1, 1).cpu().numpy()
+                    A = A.view(-1, 1).cpu().numpy()
 
-                if ref_scores is not None:
-                    for score_idx in range(len(A)):
-                        A[score_idx] = score2percentile(A[score_idx], ref_scores)
+                    if ref_scores is not None:
+                        for score_idx in range(len(A)):
+                            A[score_idx] = score2percentile(A[score_idx], ref_scores)
 
-                asset_dict = {'attention_scores': A, 'coords': coords}
-                save_path = save_hdf5(attn_save_path, asset_dict, mode=mode)
-    
-        if idx % math.ceil(num_batches * 0.05) == 0:
-            print('processed {} / {}'.format(idx, num_batches))
+                    asset_dict = {'attention_scores': A, 'coords': coords}
+                    save_path = save_hdf5(attn_save_path, asset_dict, mode=mode)
 
-        if feat_save_path is not None:
-            asset_dict = {'features': features.cpu().numpy(), 'coords': coords}
-            save_hdf5(feat_save_path, asset_dict, mode=mode)
+            if feat_save_path is not None:
+                asset_dict = {'features': features.cpu().numpy(), 'coords': coords}
+                save_hdf5(feat_save_path, asset_dict, mode=mode)
 
-        mode = "a"
+            mode = "a"
+
+            tqdm_roi.update()
     return attn_save_path, feat_save_path, wsi_object

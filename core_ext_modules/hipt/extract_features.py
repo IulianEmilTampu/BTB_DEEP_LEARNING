@@ -1,4 +1,6 @@
 import os
+import sys
+import glob
 import tqdm
 import time
 import wandb
@@ -74,6 +76,10 @@ def main(cfg: DictConfig):
             slide_features_dir.mkdir(exist_ok=True)
             if cfg.save_region_features:
                 region_features_dir.mkdir(exist_ok=True)
+    if cfg.resume:
+        output_dir = Path(cfg.resume_experiment_path)
+        slide_features_dir = Path(output_dir, "slide_features")
+        region_features_dir = Path(output_dir, "region_features")
 
     if cfg.level == "global":
         model = GlobalFeatureExtractor(
@@ -105,6 +111,21 @@ def main(cfg: DictConfig):
             slide_ids = sorted([Path(x.strip()).stem for x in f.readlines()])
         if is_main_process():
             print(f"restricting to {len(slide_ids)} slides from slide list .txt file")
+
+    if cfg.resume:
+        # remove those slide its which have already been extracted
+        if not os.path.isdir(cfg.resume_experiment_path):
+            raise ValueError(f'Path of the experiment to resume is not a found. Check. Given {cfg.resume_experiment_path}')
+        
+        # get all the slide_features .pt files in the resume_experiment_path
+        already_processed_slide_ids = list(glob.glob(os.path.join(slide_features_dir, '*.pt')))
+        already_processed_slide_ids = [os.path.basename(s).split('.')[0] for s in already_processed_slide_ids]
+        print(f'Found {len(already_processed_slide_ids)} processed slides (.pt files) in the resume_experiment_path. Skipping these slide ids.')
+        # remove the slides from the slide_ids list 
+        new_slide_ids = [s for s in slide_ids if s not in already_processed_slide_ids]
+        slide_ids = new_slide_ids
+
+        print(f'Processing {len(slide_ids)} slides.')
 
     df = initialize_df(slide_ids)
     dataset = RegionFilepathsDataset(df, region_dir, cfg.format)
@@ -158,6 +179,7 @@ def main(cfg: DictConfig):
     slide_ids, region_slide_ids = [], []
     slide_feature_paths, region_feature_paths = [], []
     x_coords, y_coords = [], []
+    non_processed_slide_ids = []
 
     with tqdm.tqdm(
         loader,
@@ -175,6 +197,13 @@ def main(cfg: DictConfig):
                 region_fps = sorted(region_fps)
                 slide_ids.append(slide_id)
                 features = []
+                
+                # check if there are regions for this slide id
+                if len(region_fps) == 0:
+                    print(f'No regions found for slide {slide_id}')
+                    non_processed_slide_ids.append(slide_id)
+                    slide_feature_paths.append(None)
+                    continue
 
                 with tqdm.tqdm(
                     region_fps,

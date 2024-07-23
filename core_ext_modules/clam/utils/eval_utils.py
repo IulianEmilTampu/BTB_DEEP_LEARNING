@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 def initiate_model(args, ckpt_path):
     print('Init Model')    
-    model_dict = {"dropout": args.drop_out, 'n_classes': args.n_classes}
+    model_dict = {"dropout": args.drop_out, 'n_classes': args.n_classes, 'feature_encoding_size' : args.feature_encoding_size,}
     
     if args.model_size is not None and args.model_type in ['clam_sb', 'clam_mb']:
         model_dict.update({"size_arg": args.model_size})
@@ -34,7 +34,7 @@ def initiate_model(args, ckpt_path):
         else:
             model = MIL_fc(**model_dict)
 
-    print_network(model)
+    # print_network(model)
 
     ckpt = torch.load(ckpt_path)
     ckpt_clean = {}
