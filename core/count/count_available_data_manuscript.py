@@ -8,21 +8,36 @@ import numpy as np
 
 def rearrange_dataset_summary(df):
     '''
-    Utility that re-arranges the dataset summary dataframe to have one row for each unique subject with the needed 
+    Utility that re-arranges the dataset summary dataframe to have one row for each unique subject-case with the needed 
     information the count.
     '''
     df_rearranged = copy.deepcopy(df)
 
     # get anonymized subject id from the anonymized code.
+    '''
+    From the anonymization code, index n. specifies:
+        0: Dataset name (BTB2024)
+        1: site/centre
+        2: subject code (stripped from any '_'. Thus, if original case number is 154_M1 -> 154)
+        3: diagnosis. This is the hex hash code for the string containing tumor category, family and type information
+        4: pad number
+        5: glass id code
+    '''
+    # this selects all the unique subject-diagnosis pairs. There can be subjects which glasses are diagnosed differently.
     get_subjects_from_anonymized_code = lambda x : '_'.join(x.split('_')[2:4])
+    df_rearranged['SUBJECT_DIAGNOSIS_ID_ANONYMIZED'] = df_rearranged.ANONYMIZED_CODE.apply(get_subjects_from_anonymized_code)
+
+    # only subject (not considering multiple diagnosis)
+    get_subjects_from_anonymized_code = lambda x : '_'.join(x.split('_')[2:3])
     df_rearranged['SUBJECT_ID_ANONYMIZED'] = df_rearranged.ANONYMIZED_CODE.apply(get_subjects_from_anonymized_code)
 
     # get anonymized site id from the anonymized code.
     get_site_from_anonymized_code = lambda x : x.split('_')[1]
     df_rearranged['SITE'] = df_rearranged.ANONYMIZED_CODE.apply(get_site_from_anonymized_code)
 
-    # compress
-    df_rearranged = df_rearranged.groupby(['SUBJECT_ID_ANONYMIZED']).agg({
+    # compress based on subject id only (no duble diagnosis)
+    df_rearranged = df_rearranged.groupby(['SUBJECT_DIAGNOSIS_ID_ANONYMIZED']).agg({
+    'SUBJECT_ID_ANONYMIZED': lambda x : pd.unique(x)[0],
     'SITE' :lambda x : pd.unique(x)[0],
     'GENDER': lambda x : pd.unique(x)[0],
     'AGE_YEARS': lambda x : pd.unique(x)[0],
@@ -63,19 +78,20 @@ def print_dataset_counts(df, pm='\u00B1'):
     min_age = df_temp.AGE_YEARS.dropna().astype(int).min()
     max_age = df_temp.AGE_YEARS.dropna().astype(int).max()
 
-    print(f'Found {len(df_temp)} unique subjects-diagnosis pairs (age [y]: {mean_age:0.2f} {pm} {std_age:0.2f}, range [{min_age:0.2f}, {max_age:0.2f}])')
+    print(f'Found {len(pd.unique(df_temp.SUBJECT_ID_ANONYMIZED))} subjects and {len(df_temp)} unique subjects-diagnosis pairs [SDPs] (age [y]: {mean_age:0.2f} {pm} {std_age:0.2f}, range [{min_age:0.2f}, {max_age:0.2f}])')
 
     # # print per gender information
     for g, n in zip(('M', 'F', 'NotAvailable'), ('Male', 'Female', 'NA')):
         aus_df = df_temp.loc[df_temp.GENDER == g]
-        subjects = len(aus_df)
+        subjects_diagnosis = len(aus_df)
+        subjects = len(pd.unique(aus_df.SUBJECT_ID_ANONYMIZED))
         mean_age = aus_df.AGE_YEARS.dropna().astype(int).mean()
         std_age = aus_df.AGE_YEARS.dropna().astype(int).std()
         min_age = aus_df.AGE_YEARS.dropna().astype(int).min()
         max_age = aus_df.AGE_YEARS.dropna().astype(int).max()
 
         # print
-        print(f'    {n:6s}: {subjects} {mean_age:0.2f} {pm} {std_age:0.2f}, range [{min_age:0.2f}, {max_age:0.2f}])')
+        print(f'    {n:6s}: {subjects:4d} subjects, {subjects_diagnosis:4d} SDPs {mean_age:0.2f} {pm} {std_age:0.2f}, range [{min_age:0.2f}, {max_age:0.2f}])')
 
     # pring the glass count if requested
     nbr_glasses = df_temp.ANONYMIZED_CODE.sum()
@@ -91,16 +107,17 @@ def print_dataset_counts(df, pm='\u00B1'):
             '9fb809d6' : 'UPPSALA',
         }
     len_characters_site = max([len(s) for s in code_to_site.keys()])
-    per_site_count = df_temp.groupby(['SITE']).agg({'SUBJECT_ID_ANONYMIZED' : lambda x : len(pd.unique(x)), 'ANONYMIZED_CODE': lambda x : sum(x), 'GENDER' : lambda x : {'M': sum(x == 'M'), 'F': sum(x=='F'), 'NA': sum(x=='NotAvailable')}})
+    per_site_count = df_temp.groupby(['SITE']).agg({'SUBJECT_ID_ANONYMIZED' : lambda x : len(pd.unique(x)), 'SUBJECT_DIAGNOSIS_ID_ANONYMIZED' : lambda x : len(pd.unique(x)), 'ANONYMIZED_CODE': lambda x : sum(x), 'GENDER' : lambda x : {'M': sum(x == 'M'), 'F': sum(x=='F'), 'NA': sum(x=='NotAvailable')}})
     
     for c, n in code_to_site.items():
         try:
+            subject_diagnosis = per_site_count.loc[c, "SUBJECT_DIAGNOSIS_ID_ANONYMIZED"]
             subjects = per_site_count.loc[c, "SUBJECT_ID_ANONYMIZED"]
-            nbr_male = per_site_count.loc[c, "GENDER"]["M"]
-            nbr_female = per_site_count.loc[c, "GENDER"]["F"]
-            nbr_NA = per_site_count.loc[c, "GENDER"]["NA"]
+            nbr_male_subjects_diagnosis = per_site_count.loc[c, "GENDER"]["M"]
+            nbr_female_subjects_diagnosis = per_site_count.loc[c, "GENDER"]["F"]
+            nbr_NA_subjects_diagnosis = per_site_count.loc[c, "GENDER"]["NA"]
             glasses = per_site_count.loc[c, "ANONYMIZED_CODE"]
-            print(f'Site: {n:{len_characters_site}s}: {subjects:4d} subjects-diagnosis pairs (M: {nbr_male}, F: {nbr_female}, NA: {nbr_NA}) ({glasses:4d} glasses)')
+            print(f'Site: {n:{len_characters_site}s}: {subjects:4d} subjects, {subject_diagnosis:4d} SDPs (M: ToDo [{nbr_male_subjects_diagnosis} SDPs], F: ToDo [{nbr_female_subjects_diagnosis} SDPs], NA: ToDo [{nbr_NA_subjects_diagnosis} SDPs]) ({glasses:4d} glasses)')
         except:
             continue
 # %% PATHS
@@ -115,6 +132,10 @@ d = {'TRUE': True, 'FALSE': False, 'UNMATCHED_WSI': 'UNMATCHED_WSI', 'UNMATCHED'
 dataset_summary['ACCEPTABLE_IMAGE_QUALITY'] = dataset_summary['ACCEPTABLE_IMAGE_QUALITY'].map(d)
     
 # %% REMOVE SUBJECTS THAT SHOULD NOT BE THERE 
+'''
+BTB2024_5e4761c2_0a51bcc55ec3_c6636fd9_917f8a98_2ee04c52: case number 163
+BTB2024_5e4761c2_44972dc52dd6_c6636fd9_b0f1699f_2ee04c52: case number 193
+'''
 to_remove = ('BTB2024_5e4761c2_0a51bcc55ec3_c6636fd9_917f8a98_2ee04c52', 'BTB2024_5e4761c2_44972dc52dd6_c6636fd9_b0f1699f_2ee04c52')
 dataset_summary = dataset_summary.loc[~dataset_summary.ANONYMIZED_CODE.isin(to_remove)]
 
