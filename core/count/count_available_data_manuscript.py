@@ -78,7 +78,7 @@ def print_dataset_counts(df, pm='\u00B1'):
     min_age = df_temp.AGE_YEARS.dropna().astype(int).min()
     max_age = df_temp.AGE_YEARS.dropna().astype(int).max()
 
-    print(f'Found {len(pd.unique(df_temp.SUBJECT_ID_ANONYMIZED))} subjects and {len(df_temp)} unique subjects-diagnosis pairs [SDPs] (age [y]: {mean_age:0.2f} {pm} {std_age:0.2f}, range [{min_age:0.2f}, {max_age:0.2f}])')
+    print(f'Found {len(pd.unique(df_temp.SUBJECT_ID_ANONYMIZED))} subjects [{len(df_temp)} subjects-diagnosis pairs [SDPs]] (age [y]: {mean_age:0.2f} {pm} {std_age:0.2f}, range [{min_age:0.2f}, {max_age:0.2f}])')
 
     # # print per gender information
     for g, n in zip(('M', 'F', 'NotAvailable'), ('Male', 'Female', 'NA')):
@@ -91,7 +91,7 @@ def print_dataset_counts(df, pm='\u00B1'):
         max_age = aus_df.AGE_YEARS.dropna().astype(int).max()
 
         # print
-        print(f'    {n:6s}: {subjects:4d} subjects, {subjects_diagnosis:4d} SDPs {mean_age:0.2f} {pm} {std_age:0.2f}, range [{min_age:0.2f}, {max_age:0.2f}])')
+        print(f'    {n:6s}: {subjects:4d} subjects [{subjects_diagnosis:4d} SDPs] {mean_age:0.2f} {pm} {std_age:0.2f}, range [{min_age:0.2f}, {max_age:0.2f}])')
 
     # pring the glass count if requested
     nbr_glasses = df_temp.ANONYMIZED_CODE.sum()
@@ -110,16 +110,44 @@ def print_dataset_counts(df, pm='\u00B1'):
     per_site_count = df_temp.groupby(['SITE']).agg({'SUBJECT_ID_ANONYMIZED' : lambda x : len(pd.unique(x)), 'SUBJECT_DIAGNOSIS_ID_ANONYMIZED' : lambda x : len(pd.unique(x)), 'ANONYMIZED_CODE': lambda x : sum(x), 'GENDER' : lambda x : {'M': sum(x == 'M'), 'F': sum(x=='F'), 'NA': sum(x=='NotAvailable')}})
     
     for c, n in code_to_site.items():
-        try:
-            subject_diagnosis = per_site_count.loc[c, "SUBJECT_DIAGNOSIS_ID_ANONYMIZED"]
-            subjects = per_site_count.loc[c, "SUBJECT_ID_ANONYMIZED"]
-            nbr_male_subjects_diagnosis = per_site_count.loc[c, "GENDER"]["M"]
-            nbr_female_subjects_diagnosis = per_site_count.loc[c, "GENDER"]["F"]
-            nbr_NA_subjects_diagnosis = per_site_count.loc[c, "GENDER"]["NA"]
-            glasses = per_site_count.loc[c, "ANONYMIZED_CODE"]
-            print(f'Site: {n:{len_characters_site}s}: {subjects:4d} subjects, {subject_diagnosis:4d} SDPs (M: ToDo [{nbr_male_subjects_diagnosis} SDPs], F: ToDo [{nbr_female_subjects_diagnosis} SDPs], NA: ToDo [{nbr_NA_subjects_diagnosis} SDPs]) ({glasses:4d} glasses)')
-        except:
-            continue
+        # try:
+            # filter df to only get the data from this site
+            aus_df = df_temp.loc[df_temp.SITE == c]
+            # get the remaining information 
+            ## number of subjects and subjects-diagnosis pairs
+            subject_diagnosis = len(pd.unique(aus_df.SUBJECT_DIAGNOSIS_ID_ANONYMIZED))
+            subjects = len(pd.unique(aus_df.SUBJECT_ID_ANONYMIZED))
+            
+            ## number of males (subjects and subjects-diagnosis pairs)
+            nbr_male_subjects_diagnosis = len(aus_df.loc[aus_df.GENDER == 'M'])
+            nbr_male_subjects = len(pd.unique(aus_df.loc[aus_df.GENDER == 'M'].SUBJECT_ID_ANONYMIZED))
+
+            ## number of females (subjects and subjects-diagnosis pairs)
+            nbr_female_subjects_diagnosis = len(aus_df.loc[aus_df.GENDER == 'F'])
+            nbr_female_subjects = len(pd.unique(aus_df.loc[aus_df.GENDER == 'F'].SUBJECT_ID_ANONYMIZED))
+
+            ## number of NA (subjects and subjects-diagnosis pairs)
+            nbr_NA_subjects_diagnosis = len(aus_df.loc[aus_df.GENDER == 'NotAvailable'])
+            nbr_NA_subjects = len(pd.unique(aus_df.loc[aus_df.GENDER == 'NotAvailable'].SUBJECT_ID_ANONYMIZED))
+            
+            ## number of WSIs/glasses
+            glasses = len(aus_df)
+            
+            print(f'Site: {n:{len_characters_site}s}: {subjects:4d} subjects [{subject_diagnosis:4d} SDPs] (M: {nbr_male_subjects} [{nbr_male_subjects_diagnosis} SDPs], F: {nbr_female_subjects} [{nbr_female_subjects_diagnosis} SDPs], NA: {nbr_NA_subjects} [{nbr_NA_subjects_diagnosis} SDPs]) ({glasses:4d} glasses)')
+        # except:
+        #     continue
+
+    # for c, n in code_to_site.items():
+    #     try:
+    #         subject_diagnosis = per_site_count.loc[c, "SUBJECT_DIAGNOSIS_ID_ANONYMIZED"]
+    #         subjects = per_site_count.loc[c, "SUBJECT_ID_ANONYMIZED"]
+    #         nbr_male_subjects_diagnosis = per_site_count.loc[c, "GENDER"]["M"]
+    #         nbr_female_subjects_diagnosis = per_site_count.loc[c, "GENDER"]["F"]
+    #         nbr_NA_subjects_diagnosis = per_site_count.loc[c, "GENDER"]["NA"]
+    #         glasses = per_site_count.loc[c, "ANONYMIZED_CODE"]
+    #         print(f'Site: {n:{len_characters_site}s}: {subjects:4d} subjects, {subject_diagnosis:4d} SDPs (M: ToDo [{nbr_male_subjects_diagnosis} SDPs], F: ToDo [{nbr_female_subjects_diagnosis} SDPs], NA: ToDo [{nbr_NA_subjects_diagnosis} SDPs]) ({glasses:4d} glasses)')
+    #     except:
+    #         continue
 # %% PATHS
 DATASET_CSV_PATH = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/dataset_csv_file/BTB_AGGREGATED_CLINICAL_AND_WSI_INFORMATION_KS_LK_GOT_UM_LUND_UPP_ANONYM_20240704.csv'
 dataset_summary = pd.read_csv(DATASET_CSV_PATH, encoding="ISO-8859-1")
@@ -149,7 +177,7 @@ print_dataset_counts(dataset_summary)
 # %% PRINT MISSING DIAGNOSIS
 not_for_analysis = dataset_summary.loc[dataset_summary.USE_DURING_ANALYSIS != True]
 dataset_summary = dataset_summary.loc[dataset_summary.USE_DURING_ANALYSIS == True]
-print(f'\n\nRemoving {len(not_for_analysis)} given USE_DURING_ANALYSIS != True')
+print(f'\n\nRemoving {len(pd.unique(rearrange_dataset_summary(not_for_analysis).SUBJECT_ID_ANONYMIZED))} subjects [{len(rearrange_dataset_summary(not_for_analysis))} SDPs] given USE_DURING_ANALYSIS != True')
 print('############ REMOVING ############\n')
 print_dataset_counts(not_for_analysis)
 print('\n############ REMAINING ############\n')
@@ -158,7 +186,7 @@ print_dataset_counts(dataset_summary)
 # %% PRINT QUALITY CHECK FAIL 
 not_for_analysis = dataset_summary.loc[dataset_summary.ACCEPTABLE_IMAGE_QUALITY != True]
 dataset_summary = dataset_summary.loc[dataset_summary.ACCEPTABLE_IMAGE_QUALITY == True]
-print(f'\n\nRemoving {len(not_for_analysis)} given ACCEPTABLE_IMAGE_QUALITY != True')
+print(f'\n\nRemoving {len(pd.unique(rearrange_dataset_summary(not_for_analysis).SUBJECT_ID_ANONYMIZED))} subjects [{len(rearrange_dataset_summary(not_for_analysis))} SDPs] given ACCEPTABLE_IMAGE_QUALITY != True')
 print('############ REMOVING ############\n')
 print_dataset_counts(not_for_analysis)
 print('\n############ REMAINING ############n\n')
@@ -191,25 +219,32 @@ print('\n\n')
 
 
 # %% PRINT DIAGNOSIS COUNTS (at all the levels)
+# subject-diagnosis pairs
 get_subjects_from_anonymized_code = lambda x : '_'.join(x.split('_')[2:4])
+dataset_summary['SUBJECT_DIAGNOSIS_ID'] = dataset_summary.ANONYMIZED_CODE.apply(get_subjects_from_anonymized_code)
+
+# only subject (not considering multiple diagnosis)
+get_subjects_from_anonymized_code = lambda x : '_'.join(x.split('_')[2:3])
 dataset_summary['SUBJECT_ID'] = dataset_summary.ANONYMIZED_CODE.apply(get_subjects_from_anonymized_code)
+
+# WSI/glass id
 get_glass_id_from_anonymized_code = lambda x : x.split('_')[4]
 dataset_summary['GLASS_ID_CLINICAL'] = dataset_summary.ANONYMIZED_CODE.apply(get_glass_id_from_anonymized_code)
 
 # build counts for each TUMOR cluster (category, family and type)
 for_analysis = copy.deepcopy(dataset_summary)
 
-gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY']).agg({'SUBJECT_ID': lambda x : len(pd.unique(x))})
+gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY']).agg({'SUBJECT_DIAGNOSIS_ID': lambda x : len(pd.unique(x)), 'SUBJECT_ID': lambda x : len(pd.unique(x))})
 for_analysis = for_analysis.merge(gb, on='WHO_TUMOR_CATEGORY', suffixes=('', '_TUMOR_CATEGORY_COUNT'))
 gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY']).agg({'GLASS_ID_CLINICAL': lambda x : len(x)})
 for_analysis = for_analysis.merge(gb, on='WHO_TUMOR_CATEGORY', suffixes=('', '_TUMOR_CATEGORY_COUNT'))
 
-gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY', 'WHO_TUMOR_FAMILY']).agg({'SUBJECT_ID': lambda x : len(pd.unique(x))})
+gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY', 'WHO_TUMOR_FAMILY']).agg({'SUBJECT_DIAGNOSIS_ID': lambda x : len(pd.unique(x)), 'SUBJECT_ID': lambda x : len(pd.unique(x))})
 for_analysis = for_analysis.merge(gb, on=['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY'], suffixes=('', '_TUMOR_FAMILY_COUNT'))
 gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY']).agg({'GLASS_ID_CLINICAL': lambda x : len(x)})
 for_analysis = for_analysis.merge(gb, on=['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY'], suffixes=('', '_TUMOR_FAMILY_COUNT'))
 
-gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE']).agg({'SUBJECT_ID': lambda x : len(pd.unique(x))})
+gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE']).agg({'SUBJECT_DIAGNOSIS_ID': lambda x : len(pd.unique(x)), 'SUBJECT_ID': lambda x : len(pd.unique(x))})
 for_analysis = for_analysis.merge(gb, on=['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE'], suffixes=('', '_TUMOR_TYPE_COUNT'))
 gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE']).agg({'GLASS_ID_CLINICAL': lambda x : len(x)})
 for_analysis = for_analysis.merge(gb, on=['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE'], suffixes=('', '_TUMOR_TYPE_COUNT'))
@@ -218,38 +253,42 @@ for d in ('TUMOR_CATEGORY', 'TUMOR_FAMILY', 'TUMOR_TYPE'):
     print(f'{d}')
     # get unique labels for this level
     unique_labels = pd.unique(for_analysis[f'WHO_{d}'])
-    # sort the labels based in the number of subjects
-    nbr_subjects = [for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_ID_{d}_COUNT'].max() for l in unique_labels]
+    
+    # sort the labels based in the number of subjects-diagnosis pairs
+    nbr_subjects_diagnosis = [for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_DIAGNOSIS_ID_{d}_COUNT'].max() for l in unique_labels]
     nbr_glasses = [for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'GLASS_ID_CLINICAL_{d}_COUNT'].max() for l in unique_labels]
     
-    unique_labels = [x for (y,x) in sorted(zip(nbr_subjects, unique_labels), key=lambda pair: pair[0])]
-    nbr_glasses
+    unique_labels = [x for (y,x) in sorted(zip(nbr_subjects_diagnosis, unique_labels), key=lambda pair: pair[0])]
+    
     # print stats for each 
     for l in unique_labels:
+        subjects_diagnosis = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_DIAGNOSIS_ID_{d}_COUNT'].max()
         subjects = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_ID_{d}_COUNT'].max()
         glasses = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'GLASS_ID_CLINICAL_{d}_COUNT'].max()
-        print(f'    {l:70s}: {subjects} subjects, {glasses} glasses')
+        print(f'    {l:70s}: {subjects_diagnosis:4d} SDPs [{subjects:4d} subjects], {glasses:4d} glasses')
 
 # %% PRINT BY FILTERING BASED ON MIN NBR SUBJECTS 
 print('\n\n\n')
 min_nbr_subjects = 10
 
 for d in ('TUMOR_CATEGORY', 'TUMOR_FAMILY', 'TUMOR_TYPE'):
-    print(f'{d} (with nbr. subjects >= {min_nbr_subjects})')
-    # get unique labels for this level
+    print(f'{d} (with nbr. subjects-diagnosis pairs >= {min_nbr_subjects})')
+# get unique labels for this level
     unique_labels = pd.unique(for_analysis[f'WHO_{d}'])
-    # sort the labels based in the number of subjects
-    nbr_subjects = [for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_ID_{d}_COUNT'].max() for l in unique_labels]
+    
+    # sort the labels based in the number of subjects-diagnosis pairs
+    nbr_subjects_diagnosis = [for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_DIAGNOSIS_ID_{d}_COUNT'].max() for l in unique_labels]
     nbr_glasses = [for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'GLASS_ID_CLINICAL_{d}_COUNT'].max() for l in unique_labels]
     
-    unique_labels = [x for (y,x) in sorted(zip(nbr_subjects, unique_labels), key=lambda pair: pair[0])]
-    nbr_glasses
+    unique_labels = [x for (y,x) in sorted(zip(nbr_subjects_diagnosis, unique_labels), key=lambda pair: pair[0])]
+    
     # print stats for each 
     for l in unique_labels:
+        subjects_diagnosis = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_DIAGNOSIS_ID_{d}_COUNT'].max()
         subjects = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_ID_{d}_COUNT'].max()
         glasses = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'GLASS_ID_CLINICAL_{d}_COUNT'].max()
         if subjects >= min_nbr_subjects:
-            print(f'    {l:70s}: {subjects} subjects, {glasses} glasses')
+            print(f'    {l:70s}: {subjects_diagnosis:4d} SDPs [{subjects:4d} subjects], {glasses:4d} glasses')
 
 # 
 # tumor_category_family_type_aggregation = for_analysis.groupby(['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE'], dropna=False).agg({'SUBJECT_ID_TUMOR_CATEGORY_COUNT': lambda x : max(x), 
