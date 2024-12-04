@@ -1,4 +1,35 @@
-# BTB project 
+# Pediatric brain tumor classification using digital histopathology and deep learning: evaluation of SOTA methods on a multi-center Swedish cohort
+
+This repository contains the code for the preprocessing, model training and evaluation for the classification of pediatric brain tumors using multi-center digital pathology data from the Barntumörbanken dataset.
+
+[Preprint](10.48550/arXiv.2409.01330) | [Cite](#reference)
+
+**Key highlights:**
+- Evaluation of state-of-the-art histology-specific feature extractors (UNI and CONCH) on a multi-center Swedish cohort for the hierarchical classification of pediatric brain tumors in digital histopathology data.
+- The UNI feature extractor with ABMIL achieved the best accuracy, with Matthew’s correlation scores of 0.86, 0.63, and 0.53 for tumor category, family, and type.
+- Models trained on data from select centers generalized well to others, with UNI and CONCH outperforming ResNet50 in cross-center testing.
+- Attention mapping shows models using information from regions identified as relevant for diagnosis by histopathologists. 
+
+**Abstract**
+Brain tumors are the most common solid tumors in children and young adults, but the scarcity of large histopathology datasets has limited the application of computational pathology in this group. This study implements two weakly supervised multiple-instance learning (MIL) approaches on patch-features obtained from state-of-the-art histology-specific foundation models to classify pediatric brain tumors in hematoxylin and eosin whole slide images (WSIs) from a multi-center Swedish cohort. WSIs from 540 subjects (age 8.5$\pm$4.9 years) diagnosed with brain tumor were gathered from the six Swedish university hospitals. Instance (patch)-level features were obtained from WSIs using three pre-trained feature extractors: ResNet50, UNI, and CONCH. Instances were aggregated using attention-based MIL (ABMIL) or clustering-constrained attention MIL (CLAM) for patient-level classification. Models were evaluated on three classification tasks based on the hierarchical classification of pediatric brain tumors: tumor category, family, and type. Model generalization was assessed by training on data from two of the centers and testing on data from four other centers. Model interpretability was evaluated through attention-mapping. The highest classification performance was achieved using UNI features and ABMIL aggregation, with Matthew’s correlation coefficient of 0.86±0.04, 0.63±0.04, and 0.53±0.05, for tumor category, family and type classification, respectively. When evaluating generalization, models utilizing UNI and CONCH features outperformed those using ResNet50. However, the drop in performance from the in-site to out-of-site testing was similar across feature extractors. These results show the potential of state-of-the-art computational pathology methods in diagnosing pediatric brain tumors at different hierarchical levels with fair generalizability on a multi-center national dataset.
+
+## Table of Contents
+- [Setup](#Setup)
+- [Datasets](#datasets)
+- [Code Structure](#code-structure)
+- [Usage](#usage)
+- [Reference](#reference)
+- [License](#license)
+---
+## Setup
+This repository uses functionalities from [hs2p](https://github.com/clemsgrs/hs2p) for image pathing and [CLAM](https://github.com/mahmoodlab/CLAM) for feature extraction, model training, evaluation and attention visualization. See the original repositories for details on the requirements and conda environment setup. 
+
+## Code Structure
+The code is designed to be run through [hydra](https://hydra.cc/docs/intro/) configuration files. The code is structured as follows:
+- **configs**: contains the configuration files that are used for defining the local directories (``local_directories/local_directories.yaml``), the data pre_processing configurations (``pre_processing`` folder) and evaluation (``evaluation/default.yaml``). See comments in the different configuration files for a detailed description of every parameter.
+- **core**: contains all the core functionalities that are not part of **hs2p** or **CLAM**. These are used for the preparation of the .csv files used for image patching and model training, for aggregating the evaluation performances across the different experiments, summarizing them and plotting graphs comparing models' performance.
+- **core_ext_modules**: contains the code from the  **hs2p** or **CLAM** (and **hipt**, **UNI** and **CONCH**) which are used in this project. The **CLAM** code has been heavily reformatted to work using hydra configuration files, which can be set in through the configuration files in the core_ext_modules/clam/config folder. 
+
 ## Check tissue segmentation and patch extraction
 Here we are using the functionalities provided by **hs2p** (https://github.com/clemsgrs/hs2p). The first thing to do is to create the required .csv file formatted like below: 
 | slide_id   | slide_path              |
