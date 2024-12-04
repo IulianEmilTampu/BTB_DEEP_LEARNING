@@ -3,6 +3,7 @@ import os
 import pandas as pd 
 import copy
 import numpy as np
+from datetime import datetime
 
 # %% UTILITIES
 
@@ -153,6 +154,12 @@ DATASET_CSV_PATH = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/dataset_csv_file
 dataset_summary = pd.read_csv(DATASET_CSV_PATH, encoding="ISO-8859-1")
 print(f'Found {len(dataset_summary)} entries.')
 
+# %% DEFINE WHERE TO SAVE ALL THE REMOVED CASES FROM THE ANALYSIS
+# This will be useful for refining the information of the excluded cases and re-run the experiments
+
+SAVE_PATH_REMOVED = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/dataset_csv_file'
+removed = []
+
 # %% REFINE TRUE FALSE 
 d = {'True': True, 'False': False, 'UNMATCHED_WSI': 'UNMATCHED_WSI','TRUE':True, 'FALSE':False}
 dataset_summary['USE_DURING_ANALYSIS'] = dataset_summary['USE_DURING_ANALYSIS'].map(d)
@@ -169,29 +176,67 @@ dataset_summary = dataset_summary.loc[~dataset_summary.ANONYMIZED_CODE.isin(to_r
 
 # %% REMOVE WSIs THAT ARE UNMATCHED
 to_remove = ['UNMATCHED_WSI']
+not_for_analysis = dataset_summary.loc[dataset_summary.MATCH_CLINICAL_WSI_INFO.isin(to_remove)]
 dataset_summary = dataset_summary.loc[~dataset_summary.MATCH_CLINICAL_WSI_INFO.isin(to_remove)]
 
+# save removed cases
+# Add flag for why removed
+not_for_analysis['WHY_REMOVED'] = 'UNMATCHED_WSI' 
+removed.append(not_for_analysis)
 # %% PRINT NBR UNIQUE SUBJECTS
 print_dataset_counts(dataset_summary)
 
 # %% PRINT MISSING DIAGNOSIS
 not_for_analysis = dataset_summary.loc[dataset_summary.USE_DURING_ANALYSIS != True]
 dataset_summary = dataset_summary.loc[dataset_summary.USE_DURING_ANALYSIS == True]
+
+# there are cases where a unique subject-diagnosis pair appears multiple times, but it is excluded partially.
+# Get those that still are present and count them. These should be excluded from the not_for_analysis counts
+sdp_to_exclude = list(pd.unique(rearrange_dataset_summary(not_for_analysis).SUBJECT_DIAGNOSIS_ID_ANONYMIZED))
+sdp_to_include = list(pd.unique(rearrange_dataset_summary(dataset_summary).SUBJECT_DIAGNOSIS_ID_ANONYMIZED))
+
+# get anonymized ID for those cases
+excluded_still_available = [s for s in sdp_to_include if s in sdp_to_exclude]
+excluded_still_available = [ID for ID in list(not_for_analysis.ANONYMIZED_CODE) if any(map(ID.__contains__, excluded_still_available))]
+# remove from the not_for_analysis
+not_for_analysis = not_for_analysis.loc[~not_for_analysis.ANONYMIZED_CODE.isin(excluded_still_available)]
+
 print(f'\n\nRemoving {len(pd.unique(rearrange_dataset_summary(not_for_analysis).SUBJECT_ID_ANONYMIZED))} subjects [{len(rearrange_dataset_summary(not_for_analysis))} SDPs] given USE_DURING_ANALYSIS != True')
 print('############ REMOVING ############\n')
 print_dataset_counts(not_for_analysis)
 print('\n############ REMAINING ############\n')
 print_dataset_counts(dataset_summary)
 
+# save removed cases
+# Add flag for why removed
+not_for_analysis['WHY_REMOVED'] = 'MISSING_DIAGNOSIS' 
+removed.append(not_for_analysis)
+
 # %% PRINT QUALITY CHECK FAIL 
 not_for_analysis = dataset_summary.loc[dataset_summary.ACCEPTABLE_IMAGE_QUALITY != True]
 dataset_summary = dataset_summary.loc[dataset_summary.ACCEPTABLE_IMAGE_QUALITY == True]
+
+# there are cases where a unique subject-diagnosis pair appears multiple times, but it is excluded partially.
+# Get those that still are present and count them. These should be excluded from the not_for_analysis counts
+sdp_to_exclude = list(pd.unique(rearrange_dataset_summary(not_for_analysis).SUBJECT_DIAGNOSIS_ID_ANONYMIZED))
+sdp_to_include = list(pd.unique(rearrange_dataset_summary(dataset_summary).SUBJECT_DIAGNOSIS_ID_ANONYMIZED))
+
+# get anonymized ID for those cases
+excluded_still_available = [s for s in sdp_to_include if s in sdp_to_exclude]
+excluded_still_available = [ID for ID in list(not_for_analysis.ANONYMIZED_CODE) if any(map(ID.__contains__, excluded_still_available))]
+# remove from the not_for_analysis
+not_for_analysis = not_for_analysis.loc[~not_for_analysis.ANONYMIZED_CODE.isin(excluded_still_available)]
+
 print(f'\n\nRemoving {len(pd.unique(rearrange_dataset_summary(not_for_analysis).SUBJECT_ID_ANONYMIZED))} subjects [{len(rearrange_dataset_summary(not_for_analysis))} SDPs] given ACCEPTABLE_IMAGE_QUALITY != True')
 print('############ REMOVING ############\n')
 print_dataset_counts(not_for_analysis)
 print('\n############ REMAINING ############n\n')
 print_dataset_counts(dataset_summary)
 
+# save removed cases
+# Add flag for why removed
+not_for_analysis['WHY_REMOVED'] = 'QUALITY_CHECK_FAIL' 
+removed.append(not_for_analysis)
 
 # %% PRINT THOSE THAT HAVE HAVE EXTRACTED FEATURES 
 PATH_TO_PATCHES = '/local/data2/iulta54/Data/BTB/histology_features/wsi_level_features/clam_features_mag_x20_size_224/vit_uni/h5_files'
@@ -202,6 +247,18 @@ feature_file_list = [i.split('.')[0] for i in os.listdir(PATH_TO_FEATURES)]
 
 ids_without_patches = dataset_summary.loc[~dataset_summary.ANONYMIZED_CODE.isin(patch_list)]
 dataset_summary = dataset_summary.loc[dataset_summary.ANONYMIZED_CODE.isin(patch_list)]
+
+# there are cases where a unique subject-diagnosis pair appears multiple times, but it is excluded partially.
+# Get those that still are present and count them. These should be excluded from the not_for_analysis counts
+sdp_to_exclude = list(pd.unique(rearrange_dataset_summary(ids_without_patches).SUBJECT_DIAGNOSIS_ID_ANONYMIZED))
+sdp_to_include = list(pd.unique(rearrange_dataset_summary(dataset_summary).SUBJECT_DIAGNOSIS_ID_ANONYMIZED))
+
+# get anonymized ID for those cases
+excluded_still_available = [s for s in sdp_to_include if s in sdp_to_exclude]
+excluded_still_available = [ID for ID in list(ids_without_patches.ANONYMIZED_CODE) if any(map(ID.__contains__, excluded_still_available))]
+# remove from the not_for_analysis
+ids_without_patches = ids_without_patches.loc[~ids_without_patches.ANONYMIZED_CODE.isin(excluded_still_available)]
+
 print(f'\n\nRemoving {len(ids_without_patches)} given no PATCHES were created')
 print('############ REMOVING ############\n')
 print_dataset_counts(ids_without_patches)
@@ -217,6 +274,11 @@ print('\n\n')
 # print('\n############ REMAINING ############n\n')
 # print_dataset_counts(dataset_summary)
 
+
+# save removed cases
+# Add flag for why removed
+ids_without_patches['WHY_REMOVED'] = 'NO_PATCHING' 
+removed.append(ids_without_patches)
 
 # %% PRINT DIAGNOSIS COUNTS (at all the levels)
 # subject-diagnosis pairs
@@ -234,71 +296,78 @@ dataset_summary['GLASS_ID_CLINICAL'] = dataset_summary.ANONYMIZED_CODE.apply(get
 # build counts for each TUMOR cluster (category, family and type)
 for_analysis = copy.deepcopy(dataset_summary)
 
-gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY']).agg({'SUBJECT_DIAGNOSIS_ID': lambda x : len(pd.unique(x)), 'SUBJECT_ID': lambda x : len(pd.unique(x))})
-for_analysis = for_analysis.merge(gb, on='WHO_TUMOR_CATEGORY', suffixes=('', '_TUMOR_CATEGORY_COUNT'))
-gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY']).agg({'GLASS_ID_CLINICAL': lambda x : len(x)})
-for_analysis = for_analysis.merge(gb, on='WHO_TUMOR_CATEGORY', suffixes=('', '_TUMOR_CATEGORY_COUNT'))
+# print summary for each of the classification granularities
+for d in ('WHO_TUMOR_CATEGORY', 'WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE'):
+    # group df based on the granularity 
+    gb = for_analysis.groupby([d]).agg({'SUBJECT_DIAGNOSIS_ID': lambda x : len(pd.unique(x)), 'SUBJECT_ID': lambda x : len(pd.unique(x)), 'GLASS_ID_CLINICAL': lambda x : len(x)})
+    # order based on the number of subject-diagnosis pair
+    gb = gb.sort_values(by=['SUBJECT_DIAGNOSIS_ID'])
 
-gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY', 'WHO_TUMOR_FAMILY']).agg({'SUBJECT_DIAGNOSIS_ID': lambda x : len(pd.unique(x)), 'SUBJECT_ID': lambda x : len(pd.unique(x))})
-for_analysis = for_analysis.merge(gb, on=['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY'], suffixes=('', '_TUMOR_FAMILY_COUNT'))
-gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY']).agg({'GLASS_ID_CLINICAL': lambda x : len(x)})
-for_analysis = for_analysis.merge(gb, on=['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY'], suffixes=('', '_TUMOR_FAMILY_COUNT'))
-
-gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE']).agg({'SUBJECT_DIAGNOSIS_ID': lambda x : len(pd.unique(x)), 'SUBJECT_ID': lambda x : len(pd.unique(x))})
-for_analysis = for_analysis.merge(gb, on=['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE'], suffixes=('', '_TUMOR_TYPE_COUNT'))
-gb = for_analysis.groupby(['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE']).agg({'GLASS_ID_CLINICAL': lambda x : len(x)})
-for_analysis = for_analysis.merge(gb, on=['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE'], suffixes=('', '_TUMOR_TYPE_COUNT'))
-
-for d in ('TUMOR_CATEGORY', 'TUMOR_FAMILY', 'TUMOR_TYPE'):
-    print(f'{d}')
-    # get unique labels for this level
-    unique_labels = pd.unique(for_analysis[f'WHO_{d}'])
-    
-    # sort the labels based in the number of subjects-diagnosis pairs
-    nbr_subjects_diagnosis = [for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_DIAGNOSIS_ID_{d}_COUNT'].max() for l in unique_labels]
-    nbr_glasses = [for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'GLASS_ID_CLINICAL_{d}_COUNT'].max() for l in unique_labels]
-    
-    unique_labels = [x for (y,x) in sorted(zip(nbr_subjects_diagnosis, unique_labels), key=lambda pair: pair[0])]
-    
+    # print stats
     # print stats for each 
-    for l in unique_labels:
-        subjects_diagnosis = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_DIAGNOSIS_ID_{d}_COUNT'].max()
-        subjects = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_ID_{d}_COUNT'].max()
-        glasses = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'GLASS_ID_CLINICAL_{d}_COUNT'].max()
+    for l in list(gb.index):
+        subjects_diagnosis = gb.loc[l].SUBJECT_DIAGNOSIS_ID
+        subjects = gb.loc[l].SUBJECT_ID
+        glasses = gb.loc[l].GLASS_ID_CLINICAL
         print(f'    {l:70s}: {subjects_diagnosis:4d} SDPs [{subjects:4d} subjects], {glasses:4d} glasses')
+
+    # print total count of subjects_diagnosis
+    print(f'    {"#"*5}')
+    print(f'    Total subject diagnosis pairs: {gb.SUBJECT_DIAGNOSIS_ID.sum():4d}')
+    print(f'    {"#"*5}')
+    # reset counter
+    spds_count = 0
+
 
 # %% PRINT BY FILTERING BASED ON MIN NBR SUBJECTS 
 print('\n\n\n')
 min_nbr_subjects = 10
 
-for d in ('TUMOR_CATEGORY', 'TUMOR_FAMILY', 'TUMOR_TYPE'):
-    print(f'{d} (with nbr. subjects-diagnosis pairs >= {min_nbr_subjects})')
-# get unique labels for this level
-    unique_labels = pd.unique(for_analysis[f'WHO_{d}'])
-    
-    # sort the labels based in the number of subjects-diagnosis pairs
-    nbr_subjects_diagnosis = [for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_DIAGNOSIS_ID_{d}_COUNT'].max() for l in unique_labels]
-    nbr_glasses = [for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'GLASS_ID_CLINICAL_{d}_COUNT'].max() for l in unique_labels]
-    
-    unique_labels = [x for (y,x) in sorted(zip(nbr_subjects_diagnosis, unique_labels), key=lambda pair: pair[0])]
-    
-    # print stats for each 
-    for l in unique_labels:
-        subjects_diagnosis = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_DIAGNOSIS_ID_{d}_COUNT'].max()
-        subjects = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'SUBJECT_ID_{d}_COUNT'].max()
-        glasses = for_analysis.loc[for_analysis[f'WHO_{d}']==l][f'GLASS_ID_CLINICAL_{d}_COUNT'].max()
-        if subjects >= min_nbr_subjects:
-            print(f'    {l:70s}: {subjects_diagnosis:4d} SDPs [{subjects:4d} subjects], {glasses:4d} glasses')
+excluded = {'WHO_TUMOR_CATEGORY':0, 'WHO_TUMOR_FAMILY':0, 'WHO_TUMOR_TYPE':0}
 
-# 
-# tumor_category_family_type_aggregation = for_analysis.groupby(['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE'], dropna=False).agg({'SUBJECT_ID_TUMOR_CATEGORY_COUNT': lambda x : max(x), 
-#                                                                                                                                              'GLASS_ID_CLINICAL_TUMOR_CATEGORY_COUNT': lambda x : max(x),
-#                                                                                                                                              'SUBJECT_ID_TUMOR_FAMILY_COUNT': lambda x : max(x),
-#                                                                                                                                              'GLASS_ID_CLINICAL_TUMOR_FAMILY_COUNT': lambda x : max(x),
-#                                                                                                                                              'SUBJECT_ID_TUMOR_TYPE_COUNT': lambda x : max(x),
-#                                                                                                                                              'GLASS_ID_CLINICAL_TUMOR_TYPE_COUNT': lambda x : max(x),
-#                                                                                                                                              })
-# print(tumor_category_family_type_aggregation)
+spds_count = 0
+glasses_count = 0
+# print summary for each of the classification granularities
+for d in ('WHO_TUMOR_CATEGORY', 'WHO_TUMOR_FAMILY', 'WHO_TUMOR_TYPE'):
+    print(f'{d} (with nbr. subjects-diagnosis pairs >= {min_nbr_subjects})')
+    # group df based on the granularity 
+    gb = for_analysis.groupby([d]).agg({'SUBJECT_DIAGNOSIS_ID': lambda x : len(pd.unique(x)), 'SUBJECT_ID': lambda x : len(pd.unique(x)), 'GLASS_ID_CLINICAL': lambda x : len(x), 'GENDER' : lambda x : {'M': sum(x == 'M'), 'F': sum(x=='F'), 'NA': sum(x=='NotAvailable')}})
+    # order based on the number of subject-diagnosis pair
+    gb = gb.sort_values(by=['SUBJECT_DIAGNOSIS_ID'])
+
+    # print stats
+    # print stats for each 
+    for l in list(gb.index):
+        subjects_diagnosis = gb.loc[l].SUBJECT_DIAGNOSIS_ID
+        
+        # get genders (sdps level)
+        gender_list = for_analysis.loc[for_analysis[d] == l].groupby(['SUBJECT_DIAGNOSIS_ID']).agg({'GENDER': lambda x : pd.unique(x)[0]}).GENDER.values
+        sdp_male = sum(gender_list=='M')
+        sdp_female = sum(gender_list=='F')
+        sdp_NA = sum(gender_list==None)
+
+        subjects = gb.loc[l].SUBJECT_ID
+        glasses = gb.loc[l].GLASS_ID_CLINICAL
+        if subjects_diagnosis >= min_nbr_subjects:
+            print(f'    {l:70s}: {subjects_diagnosis:4d} SDPs [{subjects:4d} subjects, M: {sdp_male}, F: {sdp_female}, NA: {sdp_NA}], {glasses:4d} glasses')
+            # count spds_count
+            spds_count += subjects_diagnosis
+            glasses_count += glasses
+        else:
+            # aggregate information for those that were excluded
+            excluded[d] += subjects_diagnosis
+
+    # print total count of subjects_diagnosis
+    print(f'    {"#"*5}')
+    print(f'    Total subject diagnosis pairs: {spds_count} ({glasses_count})')
+    print(f'    {"#"*5}')
+    # reset counter
+    spds_count = 0
+    glasses_count = 0
+
+for d, v in excluded.items():
+    print(f'{d}: excluded {v} subjects-diagnosis pairs')
+
 # %% PLOT SUNBURST OF TUMOR DIAGNOSIS
 import plotly.express as px
 import numpy as np
@@ -310,3 +379,7 @@ df['FRACTION'] = df.apply(lambda x : f'{x.GENDER / df.GENDER.sum() * 100:0.2f}',
 
 fig = fig = px.sunburst(df, path=['WHO_TUMOR_CATEGORY','WHO_TUMOR_FAMILY','WHO_TUMOR_TYPE'], values='FRACTION')
 fig.show()
+
+# %% SAVE LIST OF EXCLUDED TO CSV
+removed = pd.concat(removed)
+removed.to_csv(os.path.join(SAVE_PATH_REMOVED, f'BTB_REMOVED_FROM_ANALYSIS_{datetime.now().strftime("%Y%m%d")}.csv'), index=False)
