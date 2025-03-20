@@ -34,7 +34,8 @@ def case_id_from_anonymized_code(x: str):
     BTB2024_site_case_diagnosis_pad_glass-id
     """
     # return x.split("_")[2]
-    return "_".join(x.split("_")[2:4])
+    # return "_".join(x.split("_")[2:4])
+    return x.split("_")[3]
 
 
 def site_id_from_anonymized_code(x: str):
@@ -364,8 +365,9 @@ def get_repetition_split_v2(
 
 def print_df_summary(df):
     # print totals first
-    print(f"Number of slides: {len(df)}")
-    print(f"Number of unique case_ids (subjects): {len(pd.unique(df.case_id))}")
+    print(f"Number of slides: {df.unstacked_slide_id.sum()}")
+    print(f"Number of unique subject_ids: {len(pd.unique(df.subject_id))}")
+    print(f"Number of unique case_ids: {len(pd.unique(df.case_id))}")
     if "site_id" in df.columns:
         print(f"Number of sites: {len(pd.unique(df.site_id))}")
     print(f"Number of unique classes/labels: {len(pd.unique(df.label))}")
@@ -381,7 +383,7 @@ def print_df_summary(df):
         )
     else:
         aus = df.groupby(["label"]).agg(
-            {"case_id": lambda x: len(pd.unique(x)), "slide_id": lambda x: len(x)}
+            {"case_id": lambda x: len(pd.unique(x)), "slide_id": lambda x: len(x), "unstacked_slide_id": lambda x: x.sum()}
         )
     print(aus)
 
@@ -593,21 +595,23 @@ def main(cfg: DictConfig):
     # load BT_csv file
     btb_csv = pd.read_csv(cfg.btb_csv_path, encoding="ISO-8859-1")
     # make sure we have bools in USE_DURING_ANALYSIS and ACCEPTABLE_IMAGE_QUALITY columns
-    d = {"True": True, "False": False, "UNMATCHED_WSI": "UNMATCHED_WSI",'TRUE':True, 'FALSE': False}
-    btb_csv["USE_DURING_ANALYSIS"] = btb_csv["USE_DURING_ANALYSIS"].map(d)
-    d = {
-        "TRUE": True,
-        "FALSE": False,
-        "UNMATCHED_WSI": "UNMATCHED_WSI",
-        "UNMATCHED": "UNMATCHED",
-    }
-    btb_csv["ACCEPTABLE_IMAGE_QUALITY"] = btb_csv["ACCEPTABLE_IMAGE_QUALITY"].map(d)
+    # d = {"True": True, "False": False, "UNMATCHED_WSI": "UNMATCHED_WSI",'TRUE':True, 'FALSE': False}
+    # btb_csv["USE_DURING_ANALYSIS"] = btb_csv["USE_DURING_ANALYSIS"].map(d)
+    # d = {
+    #     "TRUE": True,
+    #     "FALSE": False,
+    #     "UNMATCHED_WSI": "UNMATCHED_WSI",
+    #     "UNMATCHED": "UNMATCHED",
+    # }
+    # btb_csv["ACCEPTABLE_IMAGE_QUALITY"] = btb_csv["ACCEPTABLE_IMAGE_QUALITY"].map(d)
 
     # include only those that are acceptable for the analysis (USE_DURING_ANALYSIS==True & ACCEPTABLE_IMAGE_QUALITY==True)
-    btb_csv = btb_csv.loc[
-        (btb_csv.USE_DURING_ANALYSIS == True)
-        & (btb_csv.ACCEPTABLE_IMAGE_QUALITY == True)
-    ]
+    # btb_csv = btb_csv.loc[
+    #     (btb_csv.USE_DURING_ANALYSIS == True)
+    #     & (btb_csv.ACCEPTABLE_IMAGE_QUALITY == True)
+    # ]
+
+    btb_csv = btb_csv.loc[btb_csv.ACCEPTABLE_IMAGE_QUALITY == True]
 
     # remove/include class_labels or sites from the dataset if requested
     if cfg.classes_to_include:
@@ -619,6 +623,7 @@ def main(cfg: DictConfig):
         btb_csv = btb_csv.loc[
             ~btb_csv[cfg.class_column_name].isin(cfg.classes_to_exclude)
         ]
+
 
     if any([cfg.site_to_exclude, cfg.site_to_include]):
         # check if the columns refering to the site is available. If not, print warning and infere.
@@ -648,40 +653,45 @@ def main(cfg: DictConfig):
             print(f'Removing slides belonging to sites: {cfg.site_to_exclude}')
             btb_csv = btb_csv.loc[~btb_csv[cfg.site_column_name].isin(cfg.site_to_exclude)]
 
-    # create a new Dataframe with only the ANONYMIZED_CODE, CLASS_LABEL and SITE (if needed).
+    # create a new Dataframe with only the ANONYMIZED_CODE, CLASS_LABEL, SUBJECT_ID, CASE_ID and SITE (if needed).
     # Use the class_column to get the class_label at the right classification level.
-    df_for_split = btb_csv[["ANONYMIZED_CODE", cfg.class_column_name]]
+    df_for_split = btb_csv[["ANONYMIZED_CODE", cfg.class_column_name, "SUBJECT_ID_HASH","CASE_ID_HASH"]]
     df_for_split = df_for_split.rename(
-        columns={"ANONYMIZED_CODE": "slide_id", cfg.class_column_name: "label"}
+        columns={"ANONYMIZED_CODE": "slide_id", cfg.class_column_name: "label", "SUBJECT_ID_HASH": "subject_id", "CASE_ID_HASH": "case_id"}
     )
     df_for_split = df_for_split.dropna(subset=["label"])
 
-    # get case_id (subject id) from the anonymized codes (slide_id). This is needed to perform a per-case/subject split
-    df_for_split["case_id"] = df_for_split.apply(
-        lambda x: case_id_from_anonymized_code(x.slide_id), axis=1
-    )
-    # get site_id if site stratification
-    if cfg.site_stratification:
-        df_for_split["site_id"] = df_for_split.apply(
-            lambda x: site_id_from_anonymized_code(x.slide_id), axis=1
-        )
+
+    # # get case_id (subject id) from the anonymized codes (slide_id). This is needed to perform a per-case/subject split
+    # df_for_split["case_id"] = df_for_split.apply(
+    #     lambda x: case_id_from_anonymized_code(x.slide_id), axis=1
+    # )
+    # # get site_id if site stratification
+    # if cfg.site_stratification:
+    #     df_for_split["site_id"] = df_for_split.apply(
+    #         lambda x: site_id_from_anonymized_code(x.slide_id), axis=1
+    #     )
+
 
     # # if creating splits for patient level features, compress the dataframe (one row per case_id with slide id == case id. The Anonymized code is also trimmed to only have the site and subject codes)
-    if cfg.feature_level == "patient":
-        print('Performing split on patient level features.')
+    if cfg.feature_level == "patient_case":
+        print('Performing split on patient-case level features.')
         # compact information
+        df_for_split["unstacked_slide_id"] = df_for_split["slide_id"] # this is used to count the actual number of WSIs used in the analysis prior stacking at patient-case level.
         df_for_split["slide_id"] = df_for_split.apply(
-            lambda x: "_".join(x.slide_id.split("_")[0:3]), axis=1
-        )
+            lambda x: "_".join(x.slide_id.split("_")[0:4]), axis=1
+        ) # this builds the expected patient-case file name (site_subject_case)
 
         if cfg.site_stratification:
             df_for_split = (
                 df_for_split.groupby(["case_id"])
                 .agg(
                     {
+                        "subject_id": lambda x: pd.unique(x)[0],
                         "slide_id": lambda x: pd.unique(x)[0],
                         "label": lambda x: pd.unique(x)[0],
                         "site_id": lambda x: pd.unique(x)[0],
+                        "unstacked_slide_id": lambda x: len(x),
                     }
                 )
                 .reset_index()
@@ -690,16 +700,17 @@ def main(cfg: DictConfig):
             df_for_split = (
                 df_for_split.groupby(["case_id"])
                 .agg(
-                    {
+                    {   
+                        "subject_id": lambda x: pd.unique(x)[0],
                         "slide_id": lambda x: pd.unique(x)[0],
                         "label": lambda x: pd.unique(x)[0],
+                        "unstacked_slide_id": lambda x: len(x),
                     }
-                )
-                .reset_index()
+                ).reset_index()
             )
-    print("\n\n")
+    print("\n")
     print_df_summary(df_for_split)
-    print(df_for_split)
+    print("\n")
 
     # check if the slide_ids are available as extracted features
     if cfg.check_available_features:
@@ -720,9 +731,19 @@ def main(cfg: DictConfig):
             slide_id_with_features = [
                 slide_ids[i] for i, c in enumerate(feature_check) if c
             ]
+            slide_id_without_features = [
+                slide_ids[i] for i, c in enumerate(feature_check) if not c
+            ]
+            if slide_id_without_features:
+                print(
+                    f"  Removing {len(slide_id_without_features)} slide_ids without features ({len(slide_id_without_features) / len(slide_ids) * 100:0.2f}% of the slides)."
+                )
+            else:
+                print(" All slides have features.")
             df_for_split = df_for_split.loc[
                 df_for_split.slide_id.isin(slide_id_with_features)
             ]
+    print("\n")
 
     # remove (if requested) labels with too few subjects
     if cfg.min_nbr_subjects_per_class != -1:
@@ -743,15 +764,23 @@ def main(cfg: DictConfig):
         print(
             f"Removed {len(labels_to_remove)} labels based on the min nbr. of subject filter ( >= {min_nbr_subjects_per_label}) ({percentage_slides_to_remove:0.2f}% of the slides)."
         )
-        print(f"Using {len(labels_to_keep)} labels.")
+        if labels_to_remove:
+            print(f"    Removed labels: {labels_to_remove}")
+        print(f"    Using {len(labels_to_keep)} labels.")
         df_for_split = df_for_split.loc[df_for_split.label.isin(labels_to_keep)]
 
     # map the class string to an integer (starts from 0)
+
     label_to_integer_map = get_label_to_integer_map(list(pd.unique(df_for_split.label)))
     df_for_split["label_integer"] = df_for_split.apply(
         lambda x: label_to_integer_map[x.label], axis=1
     )
-    print(label_to_integer_map)
+    print('\n')
+    print('Label to integer map:')
+    temp_max_string = max([len(k) for k in label_to_integer_map.keys()])
+    for k, v in label_to_integer_map.items():
+        print(f'{k:{temp_max_string}s} : {v}')
+    print('\n')
 
     # reset index prior splitting
     df_for_split = df_for_split.reset_index()
