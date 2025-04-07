@@ -28,13 +28,15 @@ from sklearn.model_selection import (
 
 # %% UTILITIES
 
+
 def case_id_from_anonymized_code(x: str):
     """
     The BTB anonymized codes are in the following format.
     BTB2024_site_case_diagnosis_pad_glass-id
     """
     # return x.split("_")[2]
-    return "_".join(x.split("_")[2:4])
+    # return "_".join(x.split("_")[2:4])
+    return x.split("_")[3]
 
 
 def site_id_from_anonymized_code(x: str):
@@ -183,9 +185,11 @@ def get_repetition_split(
 
         gs = GroupShuffleSplit(
             n_splits=cfg.number_of_folds,
-            train_size=(1 - cfg.validation_fraction)
-            if cfg.number_of_folds == 1
-            else (1 - 1 / cfg.number_of_folds),
+            train_size=(
+                (1 - cfg.validation_fraction)
+                if cfg.number_of_folds == 1
+                else (1 - 1 / cfg.number_of_folds)
+            ),
             random_state=random_seed,
         )
 
@@ -223,7 +227,12 @@ def get_repetition_split(
 
 
 def get_repetition_split_v2(
-    cfg: DictConfig, df, random_seed: int = 29122009, print_summary: bool = False
+    cfg: DictConfig,
+    df,
+    random_seed: int = 29122009,
+    print_summary: bool = False,
+    balance_tissue_area: bool = False,
+    max_tissue_area_difference: float = 0.1,
 ):
     """
     Utility that splits the slide_ids in the df using a per case_id split (subject wise-splitting).
@@ -249,13 +258,34 @@ def get_repetition_split_v2(
     # get indexes in the dataset for each of the subjects
     unique_case_ids = list(pd.unique(df.case_id))
     case_id_to_index_map = {}  # maps where each slide for each case id are.
-    case_id_to_label = {}
+    # case_id_to_label = {}
+    case_id_to_label = []
     for c_id in unique_case_ids:
         case_id_to_index_map[c_id] = df.index[df.case_id == c_id].tolist()
-        case_id_to_label[c_id] = pd.unique(df.loc[df.case_id == c_id].label).tolist()[0]
+        # case_id_to_label[c_id] = pd.unique(df.loc[df.case_id == c_id].label).tolist()[0]
+        if balance_tissue_area:
+            case_id_to_label.append(
+                [
+                    c_id,
+                    pd.unique(df.loc[df.case_id == c_id].label).tolist()[0],
+                    df.loc[df.case_id == c_id]["tissue_area"].sum(),
+                ],
+            )
+        else:
+            case_id_to_label.append(
+                [c_id, pd.unique(df.loc[df.case_id == c_id].label).tolist()[0]]
+            )
 
     # get a df which has two columns: case_id and label
-    df_for_split = pd.DataFrame(case_id_to_label.items(), columns=["case_id", "label"])
+    if balance_tissue_area:
+        df_for_split = pd.DataFrame(
+            case_id_to_label, columns=["case_id", "label", "tissue_area"]
+        )
+    else:
+        # df_for_split = pd.DataFrame(
+        #     case_id_to_label.items(), columns=["case_id", "label"]
+        # )
+        df_for_split = pd.DataFrame(case_id_to_label, columns=["case_id", "label"])
 
     # ################## work on splitting
     if cfg.class_stratification:
@@ -285,6 +315,15 @@ def get_repetition_split_v2(
 
         # ################## TRAIN and VALIDATION
         df_train_val_for_split = df_for_split.loc[train_val_ix].reset_index()
+
+        if balance_tissue_area:
+            df_train_val_for_split = get_balanced_tissue_area(
+                df_train_val_for_split,
+                tissue_area_column="tissue_area",
+                max_tissue_area_difference=max_tissue_area_difference,
+                max_attempts=1000,
+                print_summary=print_summary,
+            )
 
         # Build nbr_splits considering that the fraction cfg.validation_fraction is wrt to the entire dataset.
         if cfg.number_of_folds == 1:
@@ -364,25 +403,50 @@ def get_repetition_split_v2(
 
 def print_df_summary(df):
     # print totals first
-    print(f"Number of slides: {len(df)}")
-    print(f"Number of unique case_ids (subjects): {len(pd.unique(df.case_id))}")
+    print(f"Number of slides: {df.unstacked_slide_id.sum()}")
+    print(f"Number of unique subject_ids: {len(pd.unique(df.subject_id))}")
+    print(f"Number of unique case_ids: {len(pd.unique(df.case_id))}")
     if "site_id" in df.columns:
         print(f"Number of sites: {len(pd.unique(df.site_id))}")
     print(f"Number of unique classes/labels: {len(pd.unique(df.label))}")
 
     # break down on a class level
     if "site_id" in df.columns:
-        aus = df.groupby(["label"]).agg(
-            {
-                "case_id": lambda x: len(pd.unique(x)),
-                "slide_id": lambda x: len(x),
-                "site_id": lambda x: len(pd.unique(x)),
-            }
-        )
+        if "tissue_area" in df.columns:
+            aus = df.groupby(["label"]).agg(
+                {
+                    "case_id": lambda x: len(pd.unique(x)),
+                    "slide_id": lambda x: len(x),
+                    "site_id": lambda x: len(pd.unique(x)),
+                    "tissue_area": "sum",
+                }
+            )
+        else:
+            aus = df.groupby(["label"]).agg(
+                {
+                    "case_id": lambda x: len(pd.unique(x)),
+                    "slide_id": lambda x: len(x),
+                    "site_id": lambda x: len(pd.unique(x)),
+                }
+            )
+
     else:
-        aus = df.groupby(["label"]).agg(
-            {"case_id": lambda x: len(pd.unique(x)), "slide_id": lambda x: len(x)}
-        )
+        if "tissue_area" in df.columns:
+            aus = df.groupby(["label"]).agg(
+                {
+                    "case_id": lambda x: len(pd.unique(x)),
+                    "slide_id": lambda x: len(x),
+                    "tissue_area": "sum",
+                }
+            )
+        else:
+            aus = df.groupby(["label"]).agg(
+                {
+                    "case_id": lambda x: len(pd.unique(x)),
+                    "slide_id": lambda x: len(x),
+                    "unstacked_slide_id": lambda x: x.sum(),
+                }
+            )
     print(aus)
 
 
@@ -481,7 +545,7 @@ def save_for_clam(cfg, df, repetition_number):
                 .reset_index()
             )
         else:
-            test = pd.DataFrame(columns=['test'])
+            test = pd.DataFrame(columns=["test"])
 
         # concatenate and save
         split_to_save = pd.concat([train, validation, test], axis=1).drop(
@@ -581,6 +645,107 @@ def get_label_to_integer_map(unique_labels: list):
     return label_to_integer_map
 
 
+def get_balanced_tissue_area(
+    df,
+    tissue_area_column: str = "n_patches",
+    max_tissue_area_difference: float = 0.1,
+    max_attempts: int = 1000,
+    print_summary: bool = False,
+):
+    """
+    Utility that given a pandas dataframe, randomly pics case_ids for each label so that each label is represented by the same number of patches.
+    A slack of +- max_tissue_area_difference between the label with the smallest tissue area and the other randomly sampled is allowed.
+    """
+    # stratify the based on the labels and get the smallest tissue area.
+    # group by label and get the smallest tissue area
+    grouped = df.groupby("label").agg({tissue_area_column: "sum"})
+
+    # Get the minimum value and its index
+    min_tissue_areas = grouped[tissue_area_column].min()
+    min_tissue_area_label = grouped[tissue_area_column].idxmin()
+
+    # calculate min and max ranges
+    min_tissue_area_range = (
+        min_tissue_areas - min_tissue_areas * max_tissue_area_difference
+    )
+    max_tissue_area_range = (
+        min_tissue_areas + min_tissue_areas * max_tissue_area_difference
+    )
+
+    if print_summary:
+        print("Balancing dataset based on tissue area.")
+        print(
+            f"    Minimum tissue area: {min_tissue_areas} for class {min_tissue_area_label}"
+        )
+        print(
+            f"    Keeping tissue ares withing [{min_tissue_area_range}, {max_tissue_area_range}]"
+        )
+
+    # for each of the remaining labels, randomly pick among the case ids to get a sum over the tissue areas that is closes to the min_tissue_areas
+    unique_labels = df["label"].unique()
+    # remove the min_tissue_area_label
+    unique_labels = unique_labels[unique_labels != min_tissue_area_label]
+    # make dictionary with the unique labels and the indexes
+    label_index_dict = dict.fromkeys(unique_labels, [])
+
+    for label in unique_labels:
+        # get only the case ids with this label
+        temp_df = df[df["label"] == label]
+        # generate random permutations of case ids to get a sum of tissue areas that is closest to the min_tissue_areas with a difference of max_tissue_area_difference
+
+        ## try max_attempts times
+        for idx in range(max_attempts):
+            ## get random shuffling
+            temp_df = temp_df.sample(frac=1)
+            ## build cumulative sum
+            temp_df["cumulative_sum"] = temp_df["tissue_area"].cumsum()
+            ## get the index of the first cumulative value that is in the range of min_tissue_areas +- max_tissue_area_difference
+            index = []
+            index = temp_df.loc[
+                (
+                    temp_df["cumulative_sum"]
+                    >= (
+                        min_tissue_areas - min_tissue_areas * max_tissue_area_difference
+                    )
+                )
+                & (
+                    temp_df["cumulative_sum"]
+                    <= (
+                        min_tissue_areas + min_tissue_areas * max_tissue_area_difference
+                    )
+                )
+            ].index.values
+
+            if any(index):
+                # return al the indexes of the rows until the index
+                position = temp_df.index.get_loc(
+                    index[-1]
+                )  # Get the position of the target index
+                label_index_dict[label] = temp_df.index[: position + 1]
+                break
+
+    # print for each label the number of indexes
+    if print_summary:
+        for k, v in label_index_dict.items():
+            print(f"    {k} : {len(v)}")
+
+    # get the indexes of the rows from the original dataframe
+    indexes = []
+    for k, v in label_index_dict.items():
+        indexes += list(v)
+    indexes = list(set(indexes))
+    # add the indexes of the min_tissue_area_label
+    indexes += list(df[df["label"] == min_tissue_area_label].index.values)
+    # get the rows from the original dataset
+    balanced_dataframe = df.loc[indexes]
+
+    if print_summary:
+        print(f"    Original df: {len(df)}")
+        print(f"    Balanced df : {len(balanced_dataframe)}")
+
+    return balanced_dataframe
+
+
 # %% MAIN
 
 
@@ -593,21 +758,23 @@ def main(cfg: DictConfig):
     # load BT_csv file
     btb_csv = pd.read_csv(cfg.btb_csv_path, encoding="ISO-8859-1")
     # make sure we have bools in USE_DURING_ANALYSIS and ACCEPTABLE_IMAGE_QUALITY columns
-    d = {"True": True, "False": False, "UNMATCHED_WSI": "UNMATCHED_WSI",'TRUE':True, 'FALSE': False}
-    btb_csv["USE_DURING_ANALYSIS"] = btb_csv["USE_DURING_ANALYSIS"].map(d)
-    d = {
-        "TRUE": True,
-        "FALSE": False,
-        "UNMATCHED_WSI": "UNMATCHED_WSI",
-        "UNMATCHED": "UNMATCHED",
-    }
-    btb_csv["ACCEPTABLE_IMAGE_QUALITY"] = btb_csv["ACCEPTABLE_IMAGE_QUALITY"].map(d)
+    # d = {"True": True, "False": False, "UNMATCHED_WSI": "UNMATCHED_WSI",'TRUE':True, 'FALSE': False}
+    # btb_csv["USE_DURING_ANALYSIS"] = btb_csv["USE_DURING_ANALYSIS"].map(d)
+    # d = {
+    #     "TRUE": True,
+    #     "FALSE": False,
+    #     "UNMATCHED_WSI": "UNMATCHED_WSI",
+    #     "UNMATCHED": "UNMATCHED",
+    # }
+    # btb_csv["ACCEPTABLE_IMAGE_QUALITY"] = btb_csv["ACCEPTABLE_IMAGE_QUALITY"].map(d)
 
     # include only those that are acceptable for the analysis (USE_DURING_ANALYSIS==True & ACCEPTABLE_IMAGE_QUALITY==True)
-    btb_csv = btb_csv.loc[
-        (btb_csv.USE_DURING_ANALYSIS == True)
-        & (btb_csv.ACCEPTABLE_IMAGE_QUALITY == True)
-    ]
+    # btb_csv = btb_csv.loc[
+    #     (btb_csv.USE_DURING_ANALYSIS == True)
+    #     & (btb_csv.ACCEPTABLE_IMAGE_QUALITY == True)
+    # ]
+
+    btb_csv = btb_csv.loc[btb_csv.ACCEPTABLE_IMAGE_QUALITY == True]
 
     # remove/include class_labels or sites from the dataset if requested
     if cfg.classes_to_include:
@@ -623,83 +790,144 @@ def main(cfg: DictConfig):
     if any([cfg.site_to_exclude, cfg.site_to_include]):
         # check if the columns refering to the site is available. If not, print warning and infere.
         if not cfg.site_column_name in btb_csv.columns:
-            warnings.warn(f'The given site name does not exist. Attempting to infere site using a site to anonym key mapping.')
+            warnings.warn(
+                f"The given site name does not exist. Attempting to infere site using a site to anonym key mapping."
+            )
             # define site to anonymized code mapping
             code_to_site = {
-            '5e4761c2' : 'LUND', 
-            'fc173989' : 'KS',
-            '103f236b' : 'GOT',
-            '6c730372' : 'LK',
-            '9a2a64c4' : 'UMEA',
-            '9fb809d6' : 'UPPSALA',
+                "5e4761c2": "LUND",
+                "fc173989": "KS",
+                "103f236b": "GOT",
+                "6c730372": "LK",
+                "9a2a64c4": "UMEA",
+                "9fb809d6": "UPPSALA",
             }
             btb_csv["SITE"] = btb_csv.apply(
-            lambda x: code_to_site[site_id_from_anonymized_code(x.ANONYMIZED_CODE)], axis=1
+                lambda x: code_to_site[site_id_from_anonymized_code(x.ANONYMIZED_CODE)],
+                axis=1,
             )
 
-            # re-initialize the site column name 
-            cfg.site_column_name = 'SITE'
+            # re-initialize the site column name
+            cfg.site_column_name = "SITE"
 
         # remove/include specified sites
         if cfg.site_to_include:
-            print(f'Including slides belonging to sites: {cfg.site_to_include}')
-            btb_csv = btb_csv.loc[btb_csv[cfg.site_column_name].isin(cfg.site_to_include)]
+            print(f"Including slides belonging to sites: {cfg.site_to_include}")
+            btb_csv = btb_csv.loc[
+                btb_csv[cfg.site_column_name].isin(cfg.site_to_include)
+            ]
         if cfg.site_to_exclude:
-            print(f'Removing slides belonging to sites: {cfg.site_to_exclude}')
-            btb_csv = btb_csv.loc[~btb_csv[cfg.site_column_name].isin(cfg.site_to_exclude)]
+            print(f"Removing slides belonging to sites: {cfg.site_to_exclude}")
+            btb_csv = btb_csv.loc[
+                ~btb_csv[cfg.site_column_name].isin(cfg.site_to_exclude)
+            ]
 
-    # create a new Dataframe with only the ANONYMIZED_CODE, CLASS_LABEL and SITE (if needed).
+    # create a new Dataframe with only the ANONYMIZED_CODE, CLASS_LABEL, SUBJECT_ID, CASE_ID and SITE (if needed).
     # Use the class_column to get the class_label at the right classification level.
-    df_for_split = btb_csv[["ANONYMIZED_CODE", cfg.class_column_name]]
-    df_for_split = df_for_split.rename(
-        columns={"ANONYMIZED_CODE": "slide_id", cfg.class_column_name: "label"}
-    )
+    if cfg.balance_tissue_area:
+        df_for_split = btb_csv[
+            [
+                "ANONYMIZED_CODE",
+                cfg.class_column_name,
+                "SUBJECT_ID_HASH",
+                "CASE_ID_HASH",
+                cfg.tissue_area_column,
+            ]
+        ]
+        df_for_split = df_for_split.rename(
+            columns={
+                "ANONYMIZED_CODE": "slide_id",
+                cfg.class_column_name: "label",
+                "SUBJECT_ID_HASH": "subject_id",
+                "CASE_ID_HASH": "case_id",
+                cfg.tissue_area_column: "tissue_area",
+            }
+        )
+    else:
+        df_for_split = btb_csv[
+            [
+                "ANONYMIZED_CODE",
+                cfg.class_column_name,
+                "SUBJECT_ID_HASH",
+                "CASE_ID_HASH",
+            ]
+        ]
+        df_for_split = df_for_split.rename(
+            columns={
+                "ANONYMIZED_CODE": "slide_id",
+                cfg.class_column_name: "label",
+                "SUBJECT_ID_HASH": "subject_id",
+                "CASE_ID_HASH": "case_id",
+            }
+        )
     df_for_split = df_for_split.dropna(subset=["label"])
 
-    # get case_id (subject id) from the anonymized codes (slide_id). This is needed to perform a per-case/subject split
-    df_for_split["case_id"] = df_for_split.apply(
-        lambda x: case_id_from_anonymized_code(x.slide_id), axis=1
-    )
-    # get site_id if site stratification
-    if cfg.site_stratification:
-        df_for_split["site_id"] = df_for_split.apply(
-            lambda x: site_id_from_anonymized_code(x.slide_id), axis=1
-        )
+    # # get case_id (subject id) from the anonymized codes (slide_id). This is needed to perform a per-case/subject split
+    # df_for_split["case_id"] = df_for_split.apply(
+    #     lambda x: case_id_from_anonymized_code(x.slide_id), axis=1
+    # )
+    # # get site_id if site stratification
+    # if cfg.site_stratification:
+    #     df_for_split["site_id"] = df_for_split.apply(
+    #         lambda x: site_id_from_anonymized_code(x.slide_id), axis=1
+    #     )
 
     # # if creating splits for patient level features, compress the dataframe (one row per case_id with slide id == case id. The Anonymized code is also trimmed to only have the site and subject codes)
-    if cfg.feature_level == "patient":
-        print('Performing split on patient level features.')
+    if cfg.feature_level == "patient_case":
+        print("Performing split on patient-case level features.")
         # compact information
+        df_for_split["unstacked_slide_id"] = df_for_split[
+            "slide_id"
+        ]  # this is used to count the actual number of WSIs used in the analysis prior stacking at patient-case level.
         df_for_split["slide_id"] = df_for_split.apply(
-            lambda x: "_".join(x.slide_id.split("_")[0:3]), axis=1
-        )
+            lambda x: "_".join(x.slide_id.split("_")[0:4]), axis=1
+        )  # this builds the expected patient-case file name (site_subject_case)
 
         if cfg.site_stratification:
             df_for_split = (
                 df_for_split.groupby(["case_id"])
                 .agg(
                     {
+                        "subject_id": lambda x: pd.unique(x)[0],
                         "slide_id": lambda x: pd.unique(x)[0],
                         "label": lambda x: pd.unique(x)[0],
                         "site_id": lambda x: pd.unique(x)[0],
+                        "unstacked_slide_id": lambda x: len(x),
                     }
                 )
                 .reset_index()
             )
         else:
-            df_for_split = (
-                df_for_split.groupby(["case_id"])
-                .agg(
-                    {
-                        "slide_id": lambda x: pd.unique(x)[0],
-                        "label": lambda x: pd.unique(x)[0],
-                    }
+            if cfg.balance_tissue_area:
+                df_for_split = (
+                    df_for_split.groupby(["case_id"])
+                    .agg(
+                        {
+                            "subject_id": lambda x: pd.unique(x)[0],
+                            "slide_id": lambda x: pd.unique(x)[0],
+                            "label": lambda x: pd.unique(x)[0],
+                            "unstacked_slide_id": lambda x: len(x),
+                            "tissue_area": "sum",
+                        }
+                    )
+                    .reset_index()
                 )
-                .reset_index()
-            )
-    print("\n\n")
+            else:
+                df_for_split = (
+                    df_for_split.groupby(["case_id"])
+                    .agg(
+                        {
+                            "subject_id": lambda x: pd.unique(x)[0],
+                            "slide_id": lambda x: pd.unique(x)[0],
+                            "label": lambda x: pd.unique(x)[0],
+                            "unstacked_slide_id": lambda x: len(x),
+                        }
+                    )
+                    .reset_index()
+                )
+    print("\n")
     print_df_summary(df_for_split)
-    print(df_for_split)
+    print("\n")
 
     # check if the slide_ids are available as extracted features
     if cfg.check_available_features:
@@ -720,9 +948,19 @@ def main(cfg: DictConfig):
             slide_id_with_features = [
                 slide_ids[i] for i, c in enumerate(feature_check) if c
             ]
+            slide_id_without_features = [
+                slide_ids[i] for i, c in enumerate(feature_check) if not c
+            ]
+            if slide_id_without_features:
+                print(
+                    f"  Removing {len(slide_id_without_features)} slide_ids without features ({len(slide_id_without_features) / len(slide_ids) * 100:0.2f}% of the slides)."
+                )
+            else:
+                print(" All slides have features.")
             df_for_split = df_for_split.loc[
                 df_for_split.slide_id.isin(slide_id_with_features)
             ]
+    print("\n")
 
     # remove (if requested) labels with too few subjects
     if cfg.min_nbr_subjects_per_class != -1:
@@ -743,15 +981,39 @@ def main(cfg: DictConfig):
         print(
             f"Removed {len(labels_to_remove)} labels based on the min nbr. of subject filter ( >= {min_nbr_subjects_per_label}) ({percentage_slides_to_remove:0.2f}% of the slides)."
         )
-        print(f"Using {len(labels_to_keep)} labels.")
+        if labels_to_remove:
+            print(f"    Removed labels: {labels_to_remove}")
+        print(f"    Using {len(labels_to_keep)} labels.")
         df_for_split = df_for_split.loc[df_for_split.label.isin(labels_to_keep)]
 
+    # balance the number of sample for each class to obtain a balanced dataset.
+    # This is done by removing samples from the classes with more samples than the minimum number of samples.
+    # Selection is done randomly.
+    if cfg.balance_classes:
+        # get the minimum number of samples per class based on unique case_ids
+        min_nbr_samples = df_for_split.groupby("label").case_id.nunique().min()
+        # from each class randomly pick min_nbr_samples
+        df_for_split = (
+            df_for_split.groupby("label")
+            .apply(lambda x: x.sample(min_nbr_samples))
+            .reset_index(drop=True)
+        )
+
+        print(f"Balanced dataset: {min_nbr_samples} samples per class.")
+        print(f'  New class sizes: {df_for_split.groupby("label").size().to_dict()}')
+
     # map the class string to an integer (starts from 0)
+
     label_to_integer_map = get_label_to_integer_map(list(pd.unique(df_for_split.label)))
     df_for_split["label_integer"] = df_for_split.apply(
         lambda x: label_to_integer_map[x.label], axis=1
     )
-    print(label_to_integer_map)
+    print("\n")
+    print("Label to integer map:")
+    temp_max_string = max([len(k) for k in label_to_integer_map.keys()])
+    for k, v in label_to_integer_map.items():
+        print(f"{k:{temp_max_string}s} : {v}")
+    print("\n")
 
     # reset index prior splitting
     df_for_split = df_for_split.reset_index()
@@ -765,7 +1027,9 @@ def main(cfg: DictConfig):
                     cfg,
                     df_for_split,
                     random_seed=cfg.random_seed + r,
-                    print_summary=False,
+                    print_summary=True if r == 0 else False,
+                    balance_tissue_area=cfg.balanced_tissue_area,
+                    max_tissue_area_difference=cfg.tissue_area_max_difference,
                 )
 
                 # save in the format of the specified classification framework
@@ -813,6 +1077,8 @@ def main(cfg: DictConfig):
                     df_for_split,
                     random_seed=cfg.random_seed + r,
                     print_summary=True if r == 0 else False,
+                    balance_tissue_area=cfg.balance_tissue_area,
+                    max_tissue_area_difference=cfg.tissue_area_max_difference,
                 )
 
                 # save in the format of the specified classification framework
