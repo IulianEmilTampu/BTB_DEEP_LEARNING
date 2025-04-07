@@ -11,13 +11,16 @@ split_dir : ${local_directories.dataset_csv_files}/nonparametric_bootstrapping/$
 # csv_path : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/BTB_csv_for_training/dataset_summary/dataset_description_tumor_category_rep_0_folds_5.csv # Path to the dataset_descriptor csv file
 # split_dir : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/BTB_csv_for_training/clam/tumor_category_reps_1_folds_5/repetition_0 # Path to where the split .csv files for this task are located.
 
-n_classes : 4 # Number of classes
+n_classes : 7 # Number of classes
 subtyping : True # Set to True if this is a sub-typing problem (TODO - check the code for why this is needed).
 
 label_dict : # specify the classes (class to integer)
-  CNS_EMBRYONAL_TUMORS: 0
-  GLIOMAS_GLIONEURAL_NEURONAL_TUMORS: 1
-  MENINGIOMAS: 2
-  TUMORS_OF_THE_STELLAR_REGION: 3
+  Choroid plexus tumors: 0
+  Embryonal tumors: 1
+  Germ cell tumors: 2
+  Gliomas, glioneuronal tumors, and neuronal tumors: 3
+  Meningiomas: 4
+  Mesenchymal, non-meningothelial tumors: 5
+  Tumors of the sellar region: 6
 
 ignore : [] # TODO - check code to see what this does
