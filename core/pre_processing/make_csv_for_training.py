@@ -233,6 +233,7 @@ def get_repetition_split_v2(
     print_summary: bool = False,
     balance_tissue_area: bool = False,
     max_tissue_area_difference: float = 0.1,
+    min_nbr_sample_in_class_tissue_area: int = 0,
 ):
     """
     Utility that splits the slide_ids in the df using a per case_id split (subject wise-splitting).
@@ -314,15 +315,32 @@ def get_repetition_split_v2(
             train_val_ix = list(range(len(df_for_split)))
 
         # ################## TRAIN and VALIDATION
-        df_train_val_for_split = df_for_split.loc[train_val_ix].reset_index()
+        # df_train_val_for_split = df_for_split.loc[train_val_ix].reset_index()
+        df_train_val_for_split = df_for_split.loc[train_val_ix]
 
+        # refine dataframe if balanced tissue are is needed
         if balance_tissue_area:
-            df_train_val_for_split = get_balanced_tissue_area(
+            # NOTE this keeps the original index values, thus we can reference back to the un-refined dataframe
+            df_train_val_for_split_refined = get_balanced_tissue_area(
                 df_train_val_for_split,
                 tissue_area_column="tissue_area",
                 max_tissue_area_difference=max_tissue_area_difference,
                 max_attempts=1000,
                 print_summary=print_summary,
+                min_nbr_sample_in_class=min_nbr_sample_in_class_tissue_area,
+            )
+            # print indexes of the refined dataframe
+            print(
+                df_train_val_for_split_refined.groupby("label").agg(
+                    {"case_id": lambda x: len(pd.unique(x))}
+                )
+            )
+        else:
+            df_train_val_for_split_refined = df_train_val_for_split.copy()
+            print(
+                df_train_val_for_split_refined.groupby("label").agg(
+                    {"case_id": lambda x: len(pd.unique(x))}
+                )
             )
 
         # Build nbr_splits considering that the fraction cfg.validation_fraction is wrt to the entire dataset.
@@ -342,14 +360,39 @@ def get_repetition_split_v2(
 
         # get splits for all the folds
         for cv_f, (train_ix, val_ix) in enumerate(
-            skf.split(X=df_train_val_for_split.case_id, y=df_train_val_for_split.label)
+            skf.split(
+                X=df_train_val_for_split_refined.case_id,
+                y=df_train_val_for_split_refined.label,
+            )
         ):
-            # save indexes
+            # print(f"{df_train_val_for_split_refined.index}")
+            # print(f"{train_ix}")
+            # print(f"{val_ix}")
+            # match the ordered indexes to the indexes in the df_train_val_for_split_refined
+            train_ix = df_train_val_for_split_refined.index[train_ix]
+            val_ix = df_train_val_for_split_refined.index[val_ix]
+            # print(f"{train_ix}")
+            # print(f"{val_ix}")
+            # save indexes (here reference to the un-refined dataframe)
             split_indexes.append(
                 {
                     "test": list(df_for_split.loc[test_ix, "case_id"]),
-                    "train": list(df_train_val_for_split.loc[train_ix, "case_id"]),
-                    "validation": list(df_train_val_for_split.loc[val_ix, "case_id"]),
+                    "train": list(
+                        df_train_val_for_split_refined.loc[train_ix, "case_id"]
+                    ),
+                    "validation": list(
+                        df_train_val_for_split_refined.loc[val_ix, "case_id"]
+                    ),
+                    # "train": list(
+                    #     df_train_val_for_split_refined[
+                    #         df_train_val_for_split_refined.index.isin(train_ix)
+                    #     ].case_id
+                    # ),
+                    # "validation": list(
+                    #     df_train_val_for_split_refined[
+                    #         df_train_val_for_split_refined.index.isin(val_ix)
+                    #     ].case_id
+                    # ),
                 }
             )
 
@@ -403,8 +446,10 @@ def get_repetition_split_v2(
 
 def print_df_summary(df):
     # print totals first
-    print(f"Number of slides: {df.unstacked_slide_id.sum()}")
-    print(f"Number of unique subject_ids: {len(pd.unique(df.subject_id))}")
+    if "unstacked_slide_id" in df.columns:
+        print(f"Number of slides: {df.unstacked_slide_id.sum()}")
+    if "subject_id" in df.columns:
+        print(f"Number of unique subject_ids: {len(pd.unique(df.subject_id))}")
     print(f"Number of unique case_ids: {len(pd.unique(df.case_id))}")
     if "site_id" in df.columns:
         print(f"Number of sites: {len(pd.unique(df.site_id))}")
@@ -650,6 +695,7 @@ def get_balanced_tissue_area(
     tissue_area_column: str = "n_patches",
     max_tissue_area_difference: float = 0.1,
     max_attempts: int = 1000,
+    min_nbr_sample_in_class: int = 0,
     print_summary: bool = False,
 ):
     """
@@ -681,6 +727,20 @@ def get_balanced_tissue_area(
             f"    Keeping tissue ares withing [{min_tissue_area_range}, {max_tissue_area_range}]"
         )
 
+    # print mean and std for each label separately
+    if print_summary:
+
+        unique_labels = df["label"].unique()
+        for ulabel in unique_labels:
+            # get only the case ids with this label
+            temp_df = df[df["label"] == ulabel]
+            # compute mean and std of the tissue area
+            mean = temp_df[tissue_area_column].mean()
+            std = temp_df[tissue_area_column].std()
+            print(
+                f"        {ulabel:{max([len(str(l)) for l in unique_labels])}s}: mean: {mean:0.1f}, std: {std:0.1f} (over {len(temp_df)} samples, {temp_df.case_id.nunique()} unique case_ids)"
+            )
+
     # for each of the remaining labels, randomly pick among the case ids to get a sum over the tissue areas that is closes to the min_tissue_areas
     unique_labels = df["label"].unique()
     # remove the min_tissue_area_label
@@ -692,7 +752,7 @@ def get_balanced_tissue_area(
         # get only the case ids with this label
         temp_df = df[df["label"] == label]
         # generate random permutations of case ids to get a sum of tissue areas that is closest to the min_tissue_areas with a difference of max_tissue_area_difference
-
+        indexes = []
         ## try max_attempts times
         for idx in range(max_attempts):
             ## get random shuffling
@@ -721,8 +781,22 @@ def get_balanced_tissue_area(
                 position = temp_df.index.get_loc(
                     index[-1]
                 )  # Get the position of the target index
-                label_index_dict[label] = temp_df.index[: position + 1]
-                break
+                indexes = temp_df.index[
+                    : position + 1
+                ]  # Get all indexes up to the target index
+
+                # make sure that the number of samples is larger than the min_nbr_sample_in_class based on unique case_ids
+                if (
+                    temp_df[temp_df.index.isin(indexes)].case_id.nunique()
+                    >= min_nbr_sample_in_class
+                ):
+                    label_index_dict[label] = indexes
+                    break
+        # print message if the maximum number of attempts is reached
+        if idx == max_attempts - 1:
+            print(
+                f"    WARNING: maximum number of attempts reached for label {label} ({len(temp_df)} samples)."
+            )
 
     # print for each label the number of indexes
     if print_summary:
@@ -735,7 +809,7 @@ def get_balanced_tissue_area(
         indexes += list(v)
     indexes = list(set(indexes))
     # add the indexes of the min_tissue_area_label
-    indexes += list(df[df["label"] == min_tissue_area_label].index.values)
+    indexes.extend(list(df[df["label"] == min_tissue_area_label].index.values))
     # get the rows from the original dataset
     balanced_dataframe = df.loc[indexes]
 
@@ -1027,9 +1101,12 @@ def main(cfg: DictConfig):
                     cfg,
                     df_for_split,
                     random_seed=cfg.random_seed + r,
-                    print_summary=True if r == 0 else False,
+                    print_summary=True,  # if r == 0 else False,
                     balance_tissue_area=cfg.balanced_tissue_area,
                     max_tissue_area_difference=cfg.tissue_area_max_difference,
+                    min_nbr_sample_in_class_tissue_area=int(
+                        cfg.min_nbr_subjects_per_class * (1 - cfg.test_fraction)
+                    ),  # adjusted if test set is taken out
                 )
 
                 # save in the format of the specified classification framework
@@ -1076,9 +1153,12 @@ def main(cfg: DictConfig):
                     cfg,
                     df_for_split,
                     random_seed=cfg.random_seed + r,
-                    print_summary=True if r == 0 else False,
+                    print_summary=True,  # if r == 0 else False,
                     balance_tissue_area=cfg.balance_tissue_area,
                     max_tissue_area_difference=cfg.tissue_area_max_difference,
+                    min_nbr_sample_in_class_tissue_area=int(
+                        cfg.min_nbr_subjects_per_class * (1 - cfg.test_fraction)
+                    ),  # adjusted if test set is taken out
                 )
 
                 # save in the format of the specified classification framework
