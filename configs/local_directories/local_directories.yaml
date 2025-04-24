@@ -4,15 +4,17 @@
 
 # ############## feature directory ################
 # ./feature_directory:
-    # |- clam_features_mag_x40_size_256
-    # |- clam_features_mag_x20_size_256
-    # |- clam_features_mag_x20_size_224
-    #     |- resnet50
-    #     |- vit_hipt
-    #     |- vit_uni
-    #     |- vit_conch
-    #         |- h5_files
-    #         |- pt_files
+    # |- wsi_level_features
+    # | - patient_case_level_features
+        # |- clam_features_mag_x40_size_256
+        # |- clam_features_mag_x20_size_256
+        # |- clam_features_mag_x20_size_224
+        #     |- resnet50
+        #     |- vit_hipt
+        #     |- vit_uni
+        #     |- vit_conch
+        #         |- h5_files
+        #         |- pt_files
 #
 # By using this structure, one can easily specify the type of features, the magnification the patch size and the model extracting the features
 # when setting up the model for training.
@@ -55,5 +57,5 @@
 
 # ##############################
 
-feature_directory : '/local/data2/iulta54/Data/BTB/histology_features'
-dataset_csv_files : '/local/data2/iulta54/Data/BTB/experiments_csv_files'
+feature_directory : '/local/d2/iulta54/Research/Data/BTB/histology_features/subject_case_level_features'
+dataset_csv_files : '/local/d2/iulta54/Research/Data/BTB/experiments_csv_files/patient_level_features'

@@ -84,13 +84,13 @@ def load_params(df_entry, params):
 # %% PATHS
 
 PATH_TO_WSIs = '/run/media/iulta54/Expansion/Datasets/BTB/PER_SITE_WSIs'
-PATH_TO_FEATURES = '/local/data2/iulta54/Data/BTB/histology_features/wsi_level_features/clam_features_mag_x20_size_224/vit_uni' # where the features for the subjects are going to be searched for.
-PATH_TO_SEGMENTATION_SETTINGS = '/local/data2/iulta54/Data/BTB/patch_extraction_csv_files/refined_segmentation_settings.csv'
-SAVE_PATH = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs'
-SAVE_PATH = pathlib.Path(SAVE_PATH, 'heatmap_generation_conch')
+PATH_TO_FEATURES = '/run/media/iulta54/Expansion/Datasets/BTB/EXTRACTED_FEATURES/wsi_level_features/clam_features_mag_x20_size_224/vit_uni' # where the features for the subjects are going to be searched for.
+PATH_TO_SEGMENTATION_SETTINGS = '/local/d2/iulta54/Research/Data/BTB/patch_extraction_csv_files/BTB_heatmap_selected_examples.csv'
+SAVE_PATH = '/local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/outputs'
+SAVE_PATH = pathlib.Path(SAVE_PATH, 'heatmap_generation_uni')
 SAVE_PATH.mkdir(parents=True, exist_ok=True)
 
-# model for evaluation
+# model for evaluation (first experiments)
 '''
 UNI - ABMIL 
 - tumor category: median at repetition 77
@@ -130,26 +130,26 @@ ResNET - CLAM
 # ]
 
 # CONCH
-MODEL_INFORMATION = [
-	{
-		'model_path': '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_07_07_classification_models_and_results/tumor_type_all_vit_uni_mag_20_ps_224_agg_abmil_none_lr_1E-04_sch_cosine_opt_adamW_bgl_ce_7E-01_cls_True_svm_8_t083322',
-		'repetition': 130,
-		'classification_type':'tumor_type',
-		'model_description': 'vit_conch_abmil'
-	},
-	{
-		'model_path': '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_07_07_classification_models_and_results/tumor_category_all_vit_uni_mag_20_ps_224_agg_abmil_none_lr_1E-04_sch_cosine_opt_adamW_bgl_ce_7E-01_cls_True_svm_8_t070930',
-		'repetition': 107,
-		'classification_type': 'tumor_category',
-		'model_description': 'vit_conch_abmil'
-	},
-	{
-		'model_path': '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_07_07_classification_models_and_results/tumor_family_all_vit_uni_mag_20_ps_224_agg_abmil_none_lr_1E-04_sch_cosine_opt_adamW_bgl_ce_7E-01_cls_True_svm_8_t073358',
-		'repetition': 6,
-		'classification_type':'tumor_family' ,
-		'model_description': 'vit_conch_abmil'
-	}
-]
+# MODEL_INFORMATION = [
+# 	{
+# 		'model_path': '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_07_07_classification_models_and_results/tumor_type_all_vit_uni_mag_20_ps_224_agg_abmil_none_lr_1E-04_sch_cosine_opt_adamW_bgl_ce_7E-01_cls_True_svm_8_t083322',
+# 		'repetition': 130,
+# 		'classification_type':'tumor_type',
+# 		'model_description': 'vit_conch_abmil'
+# 	},
+# 	{
+# 		'model_path': '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_07_07_classification_models_and_results/tumor_category_all_vit_uni_mag_20_ps_224_agg_abmil_none_lr_1E-04_sch_cosine_opt_adamW_bgl_ce_7E-01_cls_True_svm_8_t070930',
+# 		'repetition': 107,
+# 		'classification_type': 'tumor_category',
+# 		'model_description': 'vit_conch_abmil'
+# 	},
+# 	{
+# 		'model_path': '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_07_07_classification_models_and_results/tumor_family_all_vit_uni_mag_20_ps_224_agg_abmil_none_lr_1E-04_sch_cosine_opt_adamW_bgl_ce_7E-01_cls_True_svm_8_t073358',
+# 		'repetition': 6,
+# 		'classification_type':'tumor_family' ,
+# 		'model_description': 'vit_conch_abmil'
+# 	}
+# ]
 
 # # ResNet50
 # MODEL_INFORMATION = [
@@ -173,18 +173,34 @@ MODEL_INFORMATION = [
 # 	}
 # ]
 
+# ### post review experiments
+MODEL_INFORMATION = [
+	{
+		'model_path': '/local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/outputs/classification_results_post_review/tumor_family_all_vit_uni_mag_20_ps_224_agg_clam_mb_small_lr_1E-04_sch_cosine_opt_adamW_bgl_ce_7E-01_cls_True_svm_8_t163908',
+		'repetition': 11,
+		'classification_type':'tumor_family',
+		'model_description': 'vit_uni_clam_mb'
+	},
+	{
+		'model_path': '/local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/outputs/classification_results_post_review/tumor_family_all_vit_uni_mag_20_ps_224_agg_clam_mb_small_lr_1E-04_sch_cosine_opt_adamW_bgl_ce_7E-01_cls_True_svm_8_t163908',
+		'repetition': 11,
+		'classification_type':'tumor_family',
+		'model_description': 'vit_uni_clam_mb'
+	},
+]
+
 
 # paths to the list of subjects to evaluate
-SUBJECT_TO_EVALUATE = '/local/data2/iulta54/Data/BTB/experiments_csv_files/patient_level_features/splits_tumor_category_npb_patient_features/dataset_descriptor.csv'
+SUBJECT_TO_EVALUATE = '/local/d2/iulta54/Research/Data/BTB/experiments_csv_files/patient_level_features/nonparametric_bootstrapping/tumor_family/all/dataset_descriptor.csv'
 subjects_to_evaluate = pd.read_csv(SUBJECT_TO_EVALUATE, encoding="ISO-8859-1")
 subjects_to_evaluate = list(subjects_to_evaluate.slide_id)
 
 # path to the dataset description .csv file
-DATASET_CSV_PATH = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/dataset_csv_file/BTB_AGGREGATED_CLINICAL_AND_WSI_INFORMATION_KS_LK_GOT_UM_LUND_UPP_ANONYM_20240704.csv'
+DATASET_CSV_PATH = '/local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/dataset_csv_file/analysis_20250325/BTB_analysis_tabular_data_20250325_tissue_area_information.csv'
 dataset_summary = pd.read_csv(DATASET_CSV_PATH, encoding="ISO-8859-1")
 
 # load segmentation settings
-segmentation_settings = pd.read_csv(PATH_TO_SEGMENTATION_SETTINGS, encoding="ISO-8859-1")
+segmentation_settings = pd.read_csv(PATH_TO_SEGMENTATION_SETTINGS)
 # define default segmentation parameters 
 default_seg_params = {
     'seg_level': -1,
@@ -201,6 +217,9 @@ default_filter_params = {
     'a_h' : 16,
     'max_n_holes' : 8,
 }
+
+# filter the subjects_to_evaluate to evaluate only those that have segmentation settings
+# subjects_to_evaluate = [s for s in subjects_to_evaluate if len(segmentation_settings.loc[segmentation_settings.anonymized_slide_id.str.contains(s)]) > 0]
 
 # %% LOOP THROUGH ALL THE SUBJECTS
 for subject_id in subjects_to_evaluate:

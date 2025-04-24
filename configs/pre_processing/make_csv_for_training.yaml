@@ -1,19 +1,20 @@
-btb_csv_path: '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/dataset_csv_file/BTB_AGGREGATED_CLINICAL_AND_WSI_INFORMATION_KS_LK_GOT_UM_LUND_UPP_ANONYM_20240704.csv'
-output_dir: '/local/data2/iulta54/Data/BTB/experiments_csv_files/patient_level_features/test_20240713_for_testing' # folder where to save output
+# btb_csv_path: /local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/dataset_csv_file/analysis_20250325/BTB_analysis_tabular_data_20250325.csv
+btb_csv_path: /local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/dataset_csv_file/analysis_20250325/BTB_analysis_tabular_data_20250325_tissue_area_information.csv
+output_dir: '/local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/dataset_csv_file/20250422_tumor_family_ET' # folder where to save output
 
-experiment_name: splits_${classification_level}_${split_strategy}_${feature_level}_features
+experiment_name: splits_${classification_level}_${split_strategy}_${feature_level}_features_balanced_${balance_classes}
 save_classification_task_yaml_template : True # saves a .yaml file that matches the clam/config/classification/task config files. Will not have the full paths to the .csv files dor the feature directory since these will change based on the computer the code is run on.
 
-# set if to save the files for a WSI level prediction of patient level prediction (used when training on per-patient stacked features)
-feature_level : patient
+# set if to save the files for a WSI level prediction of patient-case level prediction (used when training on per-patient-case stacked features)
+feature_level : patient_case
 
 # for which framework (hipt, and/or clam)
 framework : [clam]
 
 # split configurations
 split_strategy : npb # this specifies if the split is performed using cross validation strategy or nonparametric bootstrapping (npb). 
-npb_replicates : 1 # Valid only when the split_strategy == npb, where this specifies the number of replicates to generate.
-test_fraction : 0 # valid for both cv and npb split_strategy
+npb_replicates : 150 # Valid only when the split_strategy == npb, where this specifies the number of replicates to generate.
+test_fraction : 0.3 # valid for both cv and npb split_strategy
 number_of_repetitions : 1 # valid only for cv split strategy 
 number_of_folds : 5 # valid only for cv split strategy
 random_seed : 29122009
@@ -26,46 +27,104 @@ validation_fraction : 0.2 # only used if the number_of_folds == 1
 # tumor_family : using the WHO_TUMOR_FAMILY column to get the class information
 # tumor_type : using the WHO_TUMOR_TYPE column to get the class information
 
-classification_level : tumor_type
-class_column_name : WHO_TUMOR_TYPE
-min_nbr_subjects_per_class : -1 # Set the minimum number of subjects per class. Set to -1 to not use this as filter
+classification_level : tumor_family
+class_column_name : WHO_TUMOR_FAMILY
+min_nbr_subjects_per_class : 10 # Set the minimum number of subjects per class. Set to -1 to not use this as filter
+balance_classes : false # Set to True to have in each class the same number of samples as the lowest represented class. This selection is random and done before the split is created.
+balance_tissue_area : false # Set to true, samples for each class are randomly selected to match (+-10%) the tissue area of the tumor entity with less tissue area. 
+tissue_area_column : n_patches
+tissue_area_max_difference : 0.2 # Set the maximum difference in tissue area between the class with the most tissue area and the class with the least tissue area. This is used to balance the classes when balanced_tissue_area is set to True.
 
 classes_to_exclude : []
 # classes_to_include : []
 
 # CLASSES TO EXCLUDE IN THE OUT_OF_SITE SPLIT CREATION FOR THE MODEL GENERALIZATION RESULTS
+
+# # TUMOR CATEGORY min 10 (in training set)
 # classes_to_include: [
-#     'EPENDYMOMA',
-#     'GANGLIOGLIOMA',
-#     'MEDULLOBLASTOMA',
-#     'MEDULLOBLASTOMA_NON_WNT_NON_SHH',
-#     'PILOCYTIC_ASTROCYTOMA'
+#     'Embryonal tumors',
+#     'Gliomas, glioneuronal tumors, and neuronal tumors',
+#     'Tumors of the sellar region'
 # ]
 
+# # TUMOR FAMILY min 10 (in training set)
 # classes_to_include: [
-#     'CIRCUMSCRIBED_ASTROCYTIC_GLIOMAS',
-#     'CRANIOPHARYNGIOMAS',
-#     'EPENDYMAL_TUMORS',
-#     'GLIONEURAL_NEURONAL_TUMORS',
-#     'MEDULLOBLASTOMAS_HISTOLOGYCALLY_DEFINED',
-#     'MEDULLOBLASTOMAS_MOLECULARLY_DEFINED',
-#     'OTHER_CNS_EMBRYONAL_TUMORS',
-#     'PEDIATRIC_TYPE_DIFFUSE_HIGH_GRADE_GLIOMAS'
+#   'Circumscribed astrocytic gliomas',
+#   'Ependymal tumors',
+#   'Glioneuronal and neuronal tumors',
+#   'Medulloblastoma',
+#   'Other CNS embryonal tumors',
 # ]
 
+# # TUMOR TYPE min 10 (in training set)
 # classes_to_include: [
-#     'CNS_EMBRYONAL_TUMORS',
-#     'GLIOMAS_GLIONEURAL_NEURONAL_TUMORS',
-#     'TUMORS_OF_THE_SELLAR_REGION'
+#   'Atypical teratoid/rhabdoid tumor',
+#   'Ganglioglioma',
+#   'Medulloblastoma, non-WNT/non-SHH',
+#   'Pilocytic astrocytoma',
 # ]
 
+# ############################## 
+
+# TUMOR CATEGORY min 8 (in training set)
+# classes_to_include: [
+#     'Embryonal tumors',
+#     'Gliomas, glioneuronal tumors, and neuronal tumors',
+#     'Meningiomas',
+#     'Tumors of the sellar region'
+# ]
+
+# TUMOR FAMILY min 8 (in training set)
+# classes_to_include: [
+#   'Adult-type diffuse gliomas',
+#   'Circumscribed astrocytic gliomas',
+#   'Ependymal tumors',
+#   'Glioneuronal and neuronal tumors',
+#   'Medulloblastoma',
+#   'Meningioma',
+#   'Other CNS embryonal tumors',
+#   'Pediatric-type diffuse high-grade gliomas',
+# ]
+
+# # TUMOR TYPE min 8 (in training set)
+# classes_to_include: [
+#   'Atypical teratoid/rhabdoid tumor',
+#   "Diffuse midline glioma, H3 K27-altered",
+#   'Dysembryoplastic neuroepithelial tumor',
+#   'Ganglioglioma',
+#   'Ependymoma grade 3',
+#   'Glioblastoma',
+#   'Medulloblastoma, non-WNT/non-SHH',
+#   'Pilocytic astrocytoma',
+# ]
+
+# # CLASSIFICATION ON A PER-TUMOR CATEGORY BASIS
+# HERE WE DO A SPLIT ON A TUMOR FAMILY LEVE BY INCLUSING ONLY TUMOR ENTITIES THAT BELONG TO THE SAME CATEGORY
+
+# ## CATEGORY : GLIOMAS, GLIONEURONAL TUMORS AND NEURONAL TUMORS
+# classes_to_include: [
+#   'Adult-type diffuse gliomas',
+#   'Circumscribed astrocytic gliomas',
+#   'Ependymal tumors',
+#   'Glioneuronal and neuronal tumors',
+#   'Pediatric-type diffuse high-grade gliomas',
+# ]
+
+## CATEGORY : EMBRYONAL TUMORS
+classes_to_include: [
+ 'Embryonal tumors NOS',
+  'Medulloblastoma',
+  'Other CNS embryonal tumors',
+]
 
 
 # site (centre) split settings TODO - make split take into account the site
 site_column_name : SITE
 # available KS LUND GOT LK UMEA UPPSALA
-site_to_exclude : [] 
-site_to_include :  ['LUND', 'GOT', 'LK', 'UMEA'] 
+site_to_exclude : []
+site_to_include : []
+# site_to_include : ['LUND', 'GOT', 'LK', 'UMEA'] 
+# site_to_include :  ["KS", "UPPSALA"] 
 
 # stratification settings
 class_stratification : True
@@ -73,7 +132,7 @@ site_stratification : False
 
 # set if to filter those files that do not have extracted features
 check_available_features : True 
-feature_dir : /local/data2/iulta54/Data/BTB/histology_features/patient_level_features/clam_features_mag_x20_size_224/vit_uni/pt_files # Path to where the extracted .pt feature files are saved. 
+feature_dir : /run/media/iulta54/Expansion/Datasets/BTB/EXTRACTED_FEATURES/subject_case_level_features/clam_features_mag_x20_size_224/vit_uni/pt_files # Path to where the extracted .pt feature files are saved. 
 skip_missing_features : True # Set to True to raise an error when not all the slides_ids have extracted features. This is useful since will make sure that all the files are available for training, val and test.
 
 

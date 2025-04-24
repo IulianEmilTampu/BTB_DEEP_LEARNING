@@ -6,6 +6,7 @@ creates the .csv files needed to run HIPT or CLAM classification training.
 
 import os
 import sys
+import numpy as np
 import warnings
 import hydra
 import datetime
@@ -231,8 +232,6 @@ def get_repetition_split_v2(
     df,
     random_seed: int = 29122009,
     print_summary: bool = False,
-    balance_tissue_area: bool = False,
-    max_tissue_area_difference: float = 0.1,
     min_nbr_sample_in_class_tissue_area: int = 0,
 ):
     """
@@ -264,7 +263,7 @@ def get_repetition_split_v2(
     for c_id in unique_case_ids:
         case_id_to_index_map[c_id] = df.index[df.case_id == c_id].tolist()
         # case_id_to_label[c_id] = pd.unique(df.loc[df.case_id == c_id].label).tolist()[0]
-        if balance_tissue_area:
+        if cfg.balance_tissue_area:
             case_id_to_label.append(
                 [
                     c_id,
@@ -278,7 +277,7 @@ def get_repetition_split_v2(
             )
 
     # get a df which has two columns: case_id and label
-    if balance_tissue_area:
+    if cfg.balance_tissue_area:
         df_for_split = pd.DataFrame(
             case_id_to_label, columns=["case_id", "label", "tissue_area"]
         )
@@ -319,15 +318,16 @@ def get_repetition_split_v2(
         df_train_val_for_split = df_for_split.loc[train_val_ix]
 
         # refine dataframe if balanced tissue are is needed
-        if balance_tissue_area:
+        if cfg.balance_tissue_area:
             # NOTE this keeps the original index values, thus we can reference back to the un-refined dataframe
             df_train_val_for_split_refined = get_balanced_tissue_area(
                 df_train_val_for_split,
                 tissue_area_column="tissue_area",
-                max_tissue_area_difference=max_tissue_area_difference,
-                max_attempts=1000,
+                max_tissue_area_difference=cfg.tissue_area_max_difference,
                 print_summary=print_summary,
-                min_nbr_sample_in_class=min_nbr_sample_in_class_tissue_area,
+                min_nbr_sample_in_class=int(
+                    cfg.min_nbr_subjects_per_class * (1 - cfg.test_fraction)
+                ),  # adjust to account for the samples removed given test fraction.
             )
             # print indexes of the refined dataframe
             print(
@@ -365,14 +365,10 @@ def get_repetition_split_v2(
                 y=df_train_val_for_split_refined.label,
             )
         ):
-            # print(f"{df_train_val_for_split_refined.index}")
-            # print(f"{train_ix}")
-            # print(f"{val_ix}")
             # match the ordered indexes to the indexes in the df_train_val_for_split_refined
             train_ix = df_train_val_for_split_refined.index[train_ix]
             val_ix = df_train_val_for_split_refined.index[val_ix]
-            # print(f"{train_ix}")
-            # print(f"{val_ix}")
+
             # save indexes (here reference to the un-refined dataframe)
             split_indexes.append(
                 {
@@ -383,16 +379,6 @@ def get_repetition_split_v2(
                     "validation": list(
                         df_train_val_for_split_refined.loc[val_ix, "case_id"]
                     ),
-                    # "train": list(
-                    #     df_train_val_for_split_refined[
-                    #         df_train_val_for_split_refined.index.isin(train_ix)
-                    #     ].case_id
-                    # ),
-                    # "validation": list(
-                    #     df_train_val_for_split_refined[
-                    #         df_train_val_for_split_refined.index.isin(val_ix)
-                    #     ].case_id
-                    # ),
                 }
             )
 
@@ -694,7 +680,7 @@ def get_balanced_tissue_area(
     df,
     tissue_area_column: str = "n_patches",
     max_tissue_area_difference: float = 0.1,
-    max_attempts: int = 1000,
+    max_attempts: int = 10000,
     min_nbr_sample_in_class: int = 0,
     print_summary: bool = False,
 ):
@@ -729,7 +715,6 @@ def get_balanced_tissue_area(
 
     # print mean and std for each label separately
     if print_summary:
-
         unique_labels = df["label"].unique()
         for ulabel in unique_labels:
             # get only the case ids with this label
@@ -753,6 +738,7 @@ def get_balanced_tissue_area(
         temp_df = df[df["label"] == label]
         # generate random permutations of case ids to get a sum of tissue areas that is closest to the min_tissue_areas with a difference of max_tissue_area_difference
         indexes = []
+        idx = 0
         ## try max_attempts times
         for idx in range(max_attempts):
             ## get random shuffling
@@ -791,11 +777,37 @@ def get_balanced_tissue_area(
                     >= min_nbr_sample_in_class
                 ):
                     label_index_dict[label] = indexes
+                    idx = 0
                     break
+
         # print message if the maximum number of attempts is reached
         if idx == max_attempts - 1:
             print(
                 f"    WARNING: maximum number of attempts reached for label {label} ({len(temp_df)} samples)."
+            )
+
+            # selecting the minimum number of samples for the label to have the smallest possible tissue area.
+            # This is to avoid not having samples returned for the label.
+            temp_cumulative_tissue_area = 0
+            temp_min_samples = min(
+                [
+                    min_nbr_sample_in_class,
+                    temp_df.case_id.nunique(),
+                ]
+            )
+            for i in range(temp_min_samples):
+                # get the index of the smallest sample
+                index = temp_df[tissue_area_column].idxmin()
+                # get its class id
+                class_id = temp_df.loc[index].case_id
+                # get tissue area
+                temp_cumulative_tissue_area += temp_df.loc[index][tissue_area_column]
+                # remove all the samples that share this class id
+                temp_df = temp_df[temp_df.case_id != class_id]
+                # add the index to the label_index_dict
+                label_index_dict[label] = np.append(label_index_dict[label], index)
+            print(
+                f"    WARNING: Selecting the minimum number of samples ({temp_min_samples}) for label {label} which have the smallest tissue area {temp_cumulative_tissue_area:0.2f}."
             )
 
     # print for each label the number of indexes
@@ -1102,11 +1114,6 @@ def main(cfg: DictConfig):
                     df_for_split,
                     random_seed=cfg.random_seed + r,
                     print_summary=True,  # if r == 0 else False,
-                    balance_tissue_area=cfg.balanced_tissue_area,
-                    max_tissue_area_difference=cfg.tissue_area_max_difference,
-                    min_nbr_sample_in_class_tissue_area=int(
-                        cfg.min_nbr_subjects_per_class * (1 - cfg.test_fraction)
-                    ),  # adjusted if test set is taken out
                 )
 
                 # save in the format of the specified classification framework
@@ -1154,11 +1161,6 @@ def main(cfg: DictConfig):
                     df_for_split,
                     random_seed=cfg.random_seed + r,
                     print_summary=True,  # if r == 0 else False,
-                    balance_tissue_area=cfg.balance_tissue_area,
-                    max_tissue_area_difference=cfg.tissue_area_max_difference,
-                    min_nbr_sample_in_class_tissue_area=int(
-                        cfg.min_nbr_subjects_per_class * (1 - cfg.test_fraction)
-                    ),  # adjusted if test set is taken out
                 )
 
                 # save in the format of the specified classification framework

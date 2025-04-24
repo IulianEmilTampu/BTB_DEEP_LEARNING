@@ -17,9 +17,9 @@ from omegaconf import DictConfig
 )
 def main(cfg: DictConfig):
 
-    # load BT_csv file
+    # load BTB_ tabular file
     btb_csv = pd.read_csv(cfg.btb_csv_path, encoding="ISO-8859-1")
-    # make sure we have bools in USE_DURING_ANALYSIS and ACCEPTABLE_IMAGE_QUALITY columns
+    # make sure we have both USE_DURING_ANALYSIS and ACCEPTABLE_IMAGE_QUALITY columns
     d = {'True': True, 'False': False, 'UNMATCHED_WSI': 'UNMATCHED_WSI', 1: True, 0: False}
     btb_csv['USE_DURING_ANALYSIS'] = btb_csv['USE_DURING_ANALYSIS'].map(d)
     d = {'TRUE': True, 'FALSE': False, 'UNMATCHED_WSI': 'UNMATCHED_WSI', 'UNMATCHED':'UNMATCHED', 1: True, 0: False}

@@ -1,6 +1,6 @@
 # task configuration for running MIL training within the CLAM framework
 description : 'tumor_family' # Used to select the csv_file files describing the dataset and the splits
-version : all
+version : only_ET_category
 
 data_root_dir : ${local_directories.feature_directory}/clam_features_mag_x${magnification}_size_${patch_size}/${feature_extractor}
 csv_path : ${local_directories.dataset_csv_files}/nonparametric_bootstrapping/${task.description}/${task.version}/dataset_descriptor.csv
@@ -10,19 +10,12 @@ split_dir : ${local_directories.dataset_csv_files}/nonparametric_bootstrapping/$
 # csv_path : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/BTB_csv_for_training/dataset_summary/dataset_description_tumor_family_rep_0_folds_5.csv # Path to the dataset_descriptor csv file
 # split_dir : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/BTB_csv_for_training/clam/tumor_family_reps_1_folds_5/repetition_0 # Path to where the split .csv files for this task are located.
 
-n_classes : 10 # Number of classes
+n_classes : 3 # Number of classes
 subtyping : True # Set to True if this is a sub-typing problem (TODO - check the code for why this is needed).
 
 label_dict : # specify the classes (class to integer)
-  Adamantinomatous craniopharyngioma: 0
-  Adult-type diffuse gliomas: 1
-  Circumscribed astrocytic gliomas: 2
-  Embryonal tumors NOS: 3
-  Ependymal tumors: 4
-  Glioneuronal and neuronal tumors: 5
-  Medulloblastoma: 6
-  Meningioma: 7
-  Other CNS embryonal tumors: 8
-  Pediatric-type diffuse high-grade gliomas: 9
+  Embryonal tumors NOS: 0
+  Medulloblastoma: 1
+  Other CNS embryonal tumors: 2
 
 ignore : [] # TODO - check code to see what this does

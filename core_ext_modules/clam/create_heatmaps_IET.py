@@ -76,7 +76,7 @@ def load_params(df_entry, params):
 	return params
 
 # %% PATH TO THE CONFIGURATION FILE
-CFG_PATH = '/local/data1/iulta54/Code/BTB_DEEP_LEARNING/core_ext_modules/clam/config/heatmap/default.yaml'
+CFG_PATH = '/local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/core_ext_modules/clam/config/heatmap/default.yaml'
 cfg = omegaconf.OmegaConf.load(CFG_PATH)
 
 # %% BUILD MAIN
@@ -183,6 +183,7 @@ model_args = omegaconf.DictConfig({
 	'model_size' : training_cfg.model_size,
 	'drop_out' : training_cfg.drop_out,
 	'n_classes' : training_cfg.task.n_classes,
+	'feature_encoding_size': training_cfg.encoding_size,
 })
 
 print('\nckpt path: {}'.format(model_checkpoint_path))
@@ -350,7 +351,6 @@ for i in range(len(process_stack)):
 	blocky_wsi_kwargs = {'top_left': None, 'bot_right': None, 'patch_size': patch_size, 'step_size': patch_size, 
 'custom_downsample':cfg.patching_arguments.custom_downsample, 'level': index_level_downsample, 'use_center_shift': cfg.heatmap_arguments.use_center_shift}
 
-	break
 # %% PERFORM FEATURE EXTRACTION IF FEATURES NOT AVAILABLE FOR THIS SLIDE.
 	##### check if h5_features_file exists ######
 	if not (cfg.h5_folder and os.path.isfile(pathlib.Path(cfg.h5_folder, slide_id+'.h5'))):
@@ -427,7 +427,7 @@ for i in range(len(process_stack)):
 		else:
 			heatmap = drawHeatmap(scores, coords, slide_path, wsi_object=wsi_object, cmap=cfg.heatmap_arguments.cmap, alpha=cfg.heatmap_arguments.alpha, use_holes=True, binarize=False, vis_level=-1, blank_canvas=False,
 							thresh=-1, patch_size = vis_patch_size, convert_to_percentiles=True)
-		
+			print(f"Saving heatmap {os.path.join(r_slide_save_dir, '{}_blockmap.png'.format(slide_id))}...")
 			heatmap.save(os.path.join(r_slide_save_dir, '{}_blockmap.png'.format(slide_id)))
 			del heatmap
 
@@ -479,6 +479,7 @@ for i in range(len(process_stack)):
 								overlap=patch_args.overlap, 
 								top_left = top_left, 
 								bot_right = bot_right)
+		print(f"Saving heatmap {os.path.join(p_slide_save_dir, heatmap_save_name)}...")
 		if cfg.heatmap_arguments.save_ext == 'jpg':
 			heatmap.save(os.path.join(p_slide_save_dir, heatmap_save_name), quality=20)
 		else:
@@ -801,14 +802,14 @@ for i in range(len(process_stack)):
 		# 	compute_from_patches(wsi_object=wsi_object, clam_pred=Y_hats[0], model=model, feature_extractor=feature_extractor, batch_size=exp_args.batch_size, **wsi_kwargs, 
 		# 						attn_save_path=save_path,  ref_scores=ref_scores)
 
-		if not os.path.isfile(save_path):
-			print('heatmap {} not found'.format(save_path))
-			if heatmap_args.use_roi:
-				save_path_full = os.path.join(r_slide_save_dir, '{}_{}_roi_False.h5'.format(slide_id, patch_args.overlap))
-				print('found heatmap for whole slide')
-				save_path = save_path_full
-			else:
-				continue
+		# if not os.path.isfile(save_path):
+		# 	print('heatmap {} not found'.format(save_path))
+		# 	if heatmap_args.use_roi:
+		# 		save_path_full = os.path.join(r_slide_save_dir, '{}_{}_roi_False.h5'.format(slide_id, patch_args.overlap))
+		# 		print('found heatmap for whole slide')
+		# 		save_path = save_path_full
+		# 	else:
+		# 		continue
 
 		# file = h5py.File(save_path, 'r')
 		# dset = file['attention_scores']
@@ -844,23 +845,23 @@ for i in range(len(process_stack)):
 		# 	else:
 		# 		heatmap.save(os.path.join(p_slide_save_dir, heatmap_save_name))
 		
-		if heatmap_args.save_orig:
-			if heatmap_args.vis_level >= 0:
-				vis_level = heatmap_args.vis_level
-			else:
-				vis_level = vis_params['vis_level']
-			heatmap_save_name = '{}_orig_{}.{}'.format(slide_id,int(vis_level), heatmap_args.save_ext)
-			if os.path.isfile(os.path.join(p_slide_save_dir, heatmap_save_name)):
-				pass
-			else:
-				heatmap = wsi_object.visWSI(vis_level=vis_level, view_slide_only=True, custom_downsample=heatmap_args.custom_downsample)
-				if heatmap_args.save_ext == 'jpg':
-					heatmap.save(os.path.join(p_slide_save_dir, heatmap_save_name), quality=100)
-				else:
-					heatmap.save(os.path.join(p_slide_save_dir, heatmap_save_name))
+	# 	if heatmap_args.save_orig:
+	# 		if heatmap_args.vis_level >= 0:
+	# 			vis_level = heatmap_args.vis_level
+	# 		else:
+	# 			vis_level = vis_params['vis_level']
+	# 		heatmap_save_name = '{}_orig_{}.{}'.format(slide_id,int(vis_level), heatmap_args.save_ext)
+	# 		if os.path.isfile(os.path.join(p_slide_save_dir, heatmap_save_name)):
+	# 			pass
+	# 		else:
+	# 			heatmap = wsi_object.visWSI(vis_level=vis_level, view_slide_only=True, custom_downsample=heatmap_args.custom_downsample)
+	# 			if heatmap_args.save_ext == 'jpg':
+	# 				heatmap.save(os.path.join(p_slide_save_dir, heatmap_save_name), quality=100)
+	# 			else:
+	# 				heatmap.save(os.path.join(p_slide_save_dir, heatmap_save_name))
 
-	with open(os.path.join(exp_args.raw_save_dir, exp_args.save_exp_code, 'config.yaml'), 'w') as outfile:
-		yaml.dump(config_dict, outfile, default_flow_style=False)
+	# with open(os.path.join(exp_args.raw_save_dir, exp_args.save_exp_code, 'config.yaml'), 'w') as outfile:
+	# 	yaml.dump(config_dict, outfile, default_flow_style=False)
 
 if __name__ == '__main__':
 	main()

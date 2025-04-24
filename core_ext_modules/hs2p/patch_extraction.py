@@ -1,5 +1,5 @@
 import os
-import wandb
+# import wandb
 import hydra
 import shutil
 import datetime
@@ -27,9 +27,14 @@ def main(cfg: DictConfig):
         wandb_run.define_metric("processed", summary="max")
         run_id = wandb_run.id
 
-    if Path(cfg.resume_experiment_folder, "process_list.csv").is_file() and cfg.resume:
-        print(f'Resuming experiment saved at {cfg.resume_experiment_folder}')
-        output_dir = cfg.resume_experiment_folder
+    if cfg.resume:
+        if Path(cfg.resume_experiment_folder, "process_list.csv").is_file():
+            print(f'Resuming experiment saved at {cfg.resume_experiment_folder}')
+            output_dir = cfg.resume_experiment_folder
+        else:
+            print(f'No process list found at {cfg.resume_experiment_folder}')
+            output_dir = Path(cfg.output_dir, cfg.experiment_name, run_id)
+            output_dir.mkdir(parents=True, exist_ok=True)
     else:
         output_dir = Path(cfg.output_dir, cfg.experiment_name, run_id)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -65,8 +70,12 @@ def main(cfg: DictConfig):
         slide_df = pd.read_csv(cfg.slide_csv)
 
     process_list_fp = None
-    if Path(cfg.resume_experiment_folder, "process_list.csv").is_file() and cfg.resume:
-        process_list_fp = Path(cfg.resume_experiment_folder, "process_list.csv")
+    if cfg.resume:
+        if Path(cfg.resume_experiment_folder, "process_list.csv").is_file():
+            process_list_fp = Path(cfg.resume_experiment_folder, "process_list.csv")
+        else:
+            print(f'No process list found at {cfg.resume_experiment_folder}')
+            
 
     print()
 
