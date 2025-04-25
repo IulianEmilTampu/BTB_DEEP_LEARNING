@@ -63,7 +63,7 @@ google-auth-oauthlib==1.0.0
 googleapis-common-protos==1.60.0
 gpustat==1.1
 grpcio==1.56.2
-h11==0.14.0
+h11>=0.16.0
 h5py==3.11.0
 htmlmin==0.1.12
 huggingface-hub==0.22.2
