@@ -7,6 +7,7 @@ import matplotlib.colors as colors
 from sklearn.metrics import confusion_matrix
 import scipy.stats as st
 
+
 def get_confusion_matrix(GT, PRED):
     """
     GT and PRED are supposed to be categorical (or logits for the prediction)
@@ -103,7 +104,7 @@ def plotModelPerformance_v2(
 
 def get_performance_metrics(true_logits, pred_softmax, average="weighted"):
     from sklearn.metrics import (
-        precision_score, # average_precision_score,
+        precision_score,  # average_precision_score,
         recall_score,
         roc_curve,
         auc,
@@ -136,7 +137,9 @@ def get_performance_metrics(true_logits, pred_softmax, average="weighted"):
     # roc_curve and subsequent auc calculation will complain. Thus check this, save the index of the class with no
     # positive evidence and add a None value in the AUC computation
     index_class_with_no_positive_evidence = [
-        i for i in range(true_logits.shape[-1]) if true_logits[:, i].sum() == 0 or true_logits[:, i].sum() is np.nan
+        i
+        for i in range(true_logits.shape[-1])
+        if true_logits[:, i].sum() == 0 or true_logits[:, i].sum() is np.nan
     ]
 
     if len(index_class_with_no_positive_evidence):
@@ -168,11 +171,13 @@ def get_performance_metrics(true_logits, pred_softmax, average="weighted"):
         adjusted_pred_softmax.argmax(axis=-1) + 1,
         pos_label=np.unique(adjusted_true_logits.argmax(axis=-1)).size,
     )
-    precision = np.array(TP / (TP + FP))# np.array(TN / (FP + TN))
+    precision = np.array(TP / (TP + FP))  # np.array(TN / (FP + TN))
     recall = np.array(TP / (TP + FN))
     accuracy = np.array((TP + TN) / (TP + TN + FP + FN))
     f1score = np.array(TP / (TP + 0.5 * (FP + FN)))
-    balanced_accuracy = balanced_accuracy_score(np.argmax(true_logits, axis=-1), np.argmax(pred_softmax, axis=-1))
+    balanced_accuracy = balanced_accuracy_score(
+        np.argmax(true_logits, axis=-1), np.argmax(pred_softmax, axis=-1)
+    )
 
     # set to None the class that does not have any positive evidence
     precision[index_class_with_no_positive_evidence] = None
@@ -186,7 +191,7 @@ def get_performance_metrics(true_logits, pred_softmax, average="weighted"):
         "accuracy": accuracy,
         "f1-score": f1score,
         "auc": roc_auc_score(true_logits, pred_softmax),
-        "balanced_accuracy" : balanced_accuracy
+        "balanced_accuracy": balanced_accuracy,
     }
 
     # compute overall metrics
@@ -210,7 +215,9 @@ def get_performance_metrics(true_logits, pred_softmax, average="weighted"):
         average=average,
     )
 
-    summary_dict["overall_auc"] = roc_auc_score(true_logits, pred_softmax, average=average, multi_class='ovr')
+    summary_dict["overall_auc"] = roc_auc_score(
+        true_logits, pred_softmax, average=average, multi_class="ovr"
+    )
 
     summary_dict["matthews_correlation_coefficient"] = matthews_corrcoef(
         np.argmax(true_logits, axis=-1),
@@ -219,32 +226,36 @@ def get_performance_metrics(true_logits, pred_softmax, average="weighted"):
 
     return summary_dict
 
-def random_accuracy(true_labels, n:int=100):
-    '''
+
+def random_accuracy(true_labels, n: int = 100):
+    """
     True labels are list of integers
-    '''
+    """
     rnd_acc = []
     for i in range(n):
         # random prediction
-        random_pred = [random.choice(np.unique(true_labels)) for i in range(len(true_labels))]
+        random_pred = [
+            random.choice(np.unique(true_labels)) for i in range(len(true_labels))
+        ]
         # random.shuffle(random_pred)
         # compute accuracy
         rnd_acc.append(np.sum(true_labels == random_pred) / len(true_labels))
-    
+
     return np.mean(rnd_acc)
+
 
 def plotConfusionMatrix(
     GT=None,
     PRED=None,
     classes=None,
-    from_cm:bool=False,
+    from_cm: bool = False,
     cm=None,
     cmap=plt.cm.Blues,
     savePath=None,
     saveName=None,
     draw=False,
-    figure_setting:dict=None,
-    compute_random_accuracy:bool=False,
+    figure_setting: dict = None,
+    compute_random_accuracy: bool = False,
 ):
     from sklearn.metrics import matthews_corrcoef
 
@@ -253,15 +264,15 @@ def plotConfusionMatrix(
     """
     # figure settings
     default_figure_setting = {
-        'pred_count_font_size': 10,
-        'xlabel_font_size':12,
-        'xticks_font_size':15,
-        'xticks_rotation':45, 
-        'xticks_horizontal_alignment':'center',
-        'ylabel_font_size':12,
-        'yticks_font_size':15,
-        'title_font_size':12,
-        'legend_font_size' : 12,
+        "pred_count_font_size": 10,
+        "xlabel_font_size": 12,
+        "xticks_font_size": 15,
+        "xticks_rotation": 45,
+        "xticks_horizontal_alignment": "center",
+        "ylabel_font_size": 12,
+        "yticks_font_size": 15,
+        "title_font_size": 12,
+        "legend_font_size": 12,
     }
     if figure_setting:
         for k, v in default_figure_setting.items():
@@ -269,7 +280,6 @@ def plotConfusionMatrix(
                 figure_setting[k] = v
     else:
         figure_setting = default_figure_setting
-
 
     # compute confusion matrix
     if not from_cm:
@@ -279,8 +289,18 @@ def plotConfusionMatrix(
     plt.imshow(cm, interpolation=None, cmap=cmap)
     # plt.colorbar()
     tick_marks = np.arange(len(classes))
-    plt.xticks(tick_marks, classes, rotation=figure_setting['xticks_rotation'], fontsize=figure_setting['xticks_font_size'],ha=figure_setting['xticks_horizontal_alignment'])
-    plt.yticks(tick_marks, classes, fontsize=figure_setting['yticks_font_size'],)
+    plt.xticks(
+        tick_marks,
+        classes,
+        rotation=figure_setting["xticks_rotation"],
+        fontsize=figure_setting["xticks_font_size"],
+        ha=figure_setting["xticks_horizontal_alignment"],
+    )
+    plt.yticks(
+        tick_marks,
+        classes,
+        fontsize=figure_setting["yticks_font_size"],
+    )
 
     thresh = cm.max() / 2
 
@@ -288,16 +308,16 @@ def plotConfusionMatrix(
         plt.text(
             j,
             i,
-            f'{cm[i, j]:0.2f}',
+            f"{cm[i, j]:0.2f}",
             horizontalalignment="center",
             verticalalignment="center",
             color="white" if cm[i, j] > thresh else "black",
-            fontsize=figure_setting['pred_count_font_size'],
+            fontsize=figure_setting["pred_count_font_size"],
         )
 
     # plt.tight_layout()
-    plt.ylabel("True label", fontsize=figure_setting['xlabel_font_size'])
-    plt.xlabel("Prediction", fontsize=figure_setting['ylabel_font_size'])
+    plt.ylabel("True label", fontsize=figure_setting["xlabel_font_size"])
+    plt.xlabel("Prediction", fontsize=figure_setting["ylabel_font_size"])
 
     acc = 100 * (np.trace(cm) / np.sum(cm))
     if not from_cm:
@@ -306,10 +326,16 @@ def plotConfusionMatrix(
         mcc = 0
 
     if all([compute_random_accuracy, not from_cm]):
-        rnd_acc = random_accuracy(list(np.argmax(GT, axis=-1))) 
-        plt.title(f"Accuracy: {acc:03.2f} (random Acc: {rnd_acc*100:03.2f}), MCC: {mcc:3.2f}", fontsize=figure_setting['title_font_size'])
+        rnd_acc = random_accuracy(list(np.argmax(GT, axis=-1)))
+        plt.title(
+            f"Accuracy: {acc:03.2f} (random Acc: {rnd_acc*100:03.2f}), MCC: {mcc:3.2f}",
+            fontsize=figure_setting["title_font_size"],
+        )
     else:
-        plt.title(f"Accuracy: {acc:03.2f}, MCC: {mcc:3.2f}", fontsize=figure_setting['title_font_size'])
+        plt.title(
+            f"Accuracy: {acc:03.2f}, MCC: {mcc:3.2f}",
+            fontsize=figure_setting["title_font_size"],
+        )
     fig.tight_layout()
 
     # save if needed
@@ -340,7 +366,16 @@ def plotConfusionMatrix(
 
 ## PLOT ROC
 
-def plotROC(GT, PRED, classes, savePath=None, saveName=None, draw=False, figure_setting:dict=None):
+
+def plotROC(
+    GT,
+    PRED,
+    classes,
+    savePath=None,
+    saveName=None,
+    draw=False,
+    figure_setting: dict = None,
+):
     from sklearn.metrics import roc_curve, auc
     from itertools import cycle
     from scipy import interp
@@ -381,14 +416,14 @@ def plotROC(GT, PRED, classes, savePath=None, saveName=None, draw=False, figure_
     Using code from https://scikit-learn.org/dev/auto_examples/model_selection/plot_roc.html with modification
     """
     default_figure_setting = {
-        'average_roc_line_width':4,
-        'average_roc_line_style':':',
-        'per_class_roc_line_width': 2,
-        'per_class_roc_line_style' : '-',
-        'xlabel_font_size':12,
-        'ylabel_font_size':12,
-        'title_font_size':12,
-        'legend_font_size' : 12,
+        "average_roc_line_width": 4,
+        "average_roc_line_style": ":",
+        "per_class_roc_line_width": 2,
+        "per_class_roc_line_style": "-",
+        "xlabel_font_size": 12,
+        "ylabel_font_size": 12,
+        "title_font_size": 12,
+        "legend_font_size": 12,
     }
     if figure_setting:
         for k, v in default_figure_setting.items():
@@ -397,7 +432,6 @@ def plotROC(GT, PRED, classes, savePath=None, saveName=None, draw=False, figure_
     else:
         figure_setting = default_figure_setting
 
-    
     # handle the case where there are no positive evidence for a class
     index_class_with_no_positive_evidence = [
         i for i in range(GT.shape[-1]) if GT[:, i].sum() == 0
@@ -452,8 +486,8 @@ def plotROC(GT, PRED, classes, savePath=None, saveName=None, draw=False, figure_
         tpr["micro"],
         label="micro-average ROC curve (area = {0:0.2f})" "".format(roc_auc["micro"]),
         color="deeppink",
-        linestyle=figure_setting['average_roc_line_style'],
-        linewidth=figure_setting['average_roc_line_width'],
+        linestyle=figure_setting["average_roc_line_style"],
+        linewidth=figure_setting["average_roc_line_width"],
     )
 
     ax.plot(
@@ -461,8 +495,8 @@ def plotROC(GT, PRED, classes, savePath=None, saveName=None, draw=False, figure_
         tpr["macro"],
         label="macro-average ROC curve (area = {0:0.2f})" "".format(roc_auc["macro"]),
         color="navy",
-        linestyle=figure_setting['average_roc_line_style'],
-        linewidth=figure_setting['average_roc_line_width'],
+        linestyle=figure_setting["average_roc_line_style"],
+        linewidth=figure_setting["average_roc_line_width"],
     )
 
     colors = cycle(
@@ -485,8 +519,8 @@ def plotROC(GT, PRED, classes, savePath=None, saveName=None, draw=False, figure_
             fpr[i],
             tpr[i],
             color=color,
-            linestyle=figure_setting['per_class_roc_line_style'],
-            linewidth=figure_setting['per_class_roc_line_width'],
+            linestyle=figure_setting["per_class_roc_line_style"],
+            linewidth=figure_setting["per_class_roc_line_width"],
             label="ROC curve of class {} (area = {:0.2f})"
             "".format(classes[i], roc_auc[i]),
         )
@@ -503,10 +537,12 @@ def plotROC(GT, PRED, classes, savePath=None, saveName=None, draw=False, figure_
     ax.set_ylim([0.0, 1.0])
     plt.grid(color="b", linestyle="-.", linewidth=0.1, which="both")
 
-    ax.set_xlabel("False Positive Rate", fontsize=figure_setting['xlabel_font_size'])
-    ax.set_ylabel("True Positive Rate", fontsize=figure_setting['ylabel_font_size'])
-    ax.set_title("Multi-class ROC (OneVsAll)", fontsize=figure_setting['title_font_size'])
-    plt.legend(loc="lower right", fontsize=figure_setting['legend_font_size'])
+    ax.set_xlabel("False Positive Rate", fontsize=figure_setting["xlabel_font_size"])
+    ax.set_ylabel("True Positive Rate", fontsize=figure_setting["ylabel_font_size"])
+    ax.set_title(
+        "Multi-class ROC (OneVsAll)", fontsize=figure_setting["title_font_size"]
+    )
+    plt.legend(loc="lower right", fontsize=figure_setting["legend_font_size"])
 
     # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ work on the zummed-in image
     # colors = cycle(
@@ -772,13 +808,22 @@ def plotPR(GT, PRED, classes, savePath=None, saveName=None, draw=False):
 
     # return precision, recall, average_precision, F1
 
-def aggregate_evaluation_for_metric(x, pm_symbol = f" \u00B1 " , format='0.2', new_line_symbol='<br>'):
-    mean = np.mean(x)
-    std = np.std(x)
-    min = np.min(x)
-    max = np.max(x)
-    low_95ci, high_95ci = st.t.interval(0.95, len(x)-1, loc=np.nanmean(x), scale=st.sem(x, nan_policy='omit'))
 
-    # string for printing
-    # return f"{mean:{format}f}{pm_symbol}{std:{format}f}\nrange [{min:{format}f}, {max:{format}f}]\nquantile [{min_05_q:{format}f}, {max_95_q:{format}f}]"
-    return f"{mean:{format}f}{pm_symbol}{std:{format}f}{new_line_symbol}[{low_95ci:{format}f}, {high_95ci:{format}f}]"
+def aggregate_evaluation_for_metric(
+    x, pm_symbol=f" \u00b1 ", format="0.2", new_line_symbol="<br>"
+):
+    # check if all the values are nan
+    if all(np.isnan(x)):
+        return None
+    else:
+        mean = np.mean(x)
+        std = np.std(x)
+        min = np.min(x)
+        max = np.max(x)
+        low_95ci, high_95ci = st.t.interval(
+            0.95, len(x) - 1, loc=np.nanmean(x), scale=st.sem(x, nan_policy="omit")
+        )
+
+        # string for printing
+        # return f"{mean:{format}f}{pm_symbol}{std:{format}f}\nrange [{min:{format}f}, {max:{format}f}]\nquantile [{min_05_q:{format}f}, {max_95_q:{format}f}]"
+        return f"{mean:{format}f}{pm_symbol}{std:{format}f}{new_line_symbol}[{low_95ci:{format}f}, {high_95ci:{format}f}]"

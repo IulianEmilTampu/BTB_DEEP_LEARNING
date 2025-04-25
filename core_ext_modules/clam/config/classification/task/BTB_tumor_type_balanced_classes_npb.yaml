@@ -1,0 +1,24 @@
+# task configuration for running MIL training within the CLAM framework
+
+description : 'tumor_type' # Used to select the csv_file files describing the dataset and the splits
+version : all_balanced_classes
+
+data_root_dir : ${local_directories.feature_directory}/clam_features_mag_x${magnification}_size_${patch_size}/${feature_extractor}
+csv_path : ${local_directories.dataset_csv_files}/nonparametric_bootstrapping/${task.description}/${task.version}/dataset_descriptor.csv
+split_dir : ${local_directories.dataset_csv_files}/nonparametric_bootstrapping/${task.description}/${task.version}/clam/repetition_0
+
+n_classes : 9 # Number of classes
+subtyping : True # Set to True if this is a sub-typing problem (TODO - check the code for why this is needed).
+
+label_dict : # specify the classes (class to integer)
+  Atypical teratoid/rhabdoid tumor: 0
+  Dysembryoplastic neuroepithelial tumor: 1
+  Ependymoma grade 1-2: 2
+  Ependymoma grade 3: 3
+  Ganglioglioma: 4
+  Glioblastoma: 5
+  Medulloblastoma, WNT-activated: 6
+  Medulloblastoma, non-WNT/non-SHH: 7
+  Pilocytic astrocytoma: 8
+
+ignore : [] # TODO - check code to see what this does

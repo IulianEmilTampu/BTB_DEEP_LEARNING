@@ -1,12 +1,12 @@
 # hydra configuration
 hydra:
   searchpath:
-    - file:///local/data1/iulta54/Code/BTB_DEEP_LEARNING/configs
+    - file:////local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/configs
 
 # Default configuration file for running MIL training using CLAM framework (not CLAM per-se)
 defaults:
 - _self_
-- task : BTB_tumor_category
+- task : 
 - local_directories : local_directories
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ experiment information
@@ -15,8 +15,8 @@ magnification : 20
 patch_size : 224
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ experiment setting
-exp_code :  # name of the experiment for saving the results
-results_dir : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs # Path to where the results should be saved
+exp_code :  test_new_experiments_20250320 # name of the experiment for saving the results
+results_dir : /local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/outputs # Path to where the results should be saved
 
 label_frac : 1.0 # Fraction of given training images to use [0, 1]
 seed : 29122009 # For reproducibility
@@ -25,7 +25,7 @@ testing : False # Debugging tool (TODO check the code and see what it does)
 
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ cross validation settings
-k : 5 # Number of folds to run 
+k : 150 # Number of folds to run 
 k_start : -1 # Sets the number of the fold from where it starts training (-1 means the last one)
 k_end : -1 # Sets the number of the fold from where it ends training (-1 means the first one)
 
@@ -35,7 +35,7 @@ lr_scheduler : 'cosine'
 reg : 0.001 # Weight decay
 opt : adamW # Select between adam or sgd optimizer
 bag_loss : ce # Select between ce (categorical cross-entropy) or svm (support vector machine) loss for the slide level classification.
-use_class_weights : false # if to use a weighted bag loss with weights computed on the training set ()
+use_class_weights : true # if to use a weighted bag loss with weights computed on the training set ()
 bag_weight : 0.7 # Weight coefficient for bag-level loss
 
 # ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤ model settings

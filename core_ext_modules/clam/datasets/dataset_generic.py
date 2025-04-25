@@ -446,14 +446,14 @@ class Generic_MIL_Dataset(Generic_WSI_Classification_Dataset):
         else:
             data_dir = self.data_dir
 
-        if not self.use_h5:
-            if self.data_dir:
-                full_path = os.path.join(data_dir, "pt_files", "{}.pt".format(slide_id))
-                features = torch.load(full_path)
-                return features, label
-
-            else:
-                return slide_id, label
+		if not self.use_h5:
+			if self.data_dir:
+				full_path = os.path.join(data_dir, 'pt_files', '{}.pt'.format(slide_id))
+				features = torch.load(full_path, weights_only=True)
+				return features, label
+			
+			else:
+				return slide_id, label
 
         else:
             full_path = os.path.join(data_dir, "h5_files", "{}.h5".format(slide_id))

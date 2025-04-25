@@ -82,7 +82,7 @@ def load_params(df_entry, params):
 
 # %% MAIN
 @hydra.main(
-    version_base="1.2.0", config_path=os.path.join('config', 'heatmaps'), config_name='default'
+    version_base="1.2.0", config_path=os.path.join('config', 'heatmap'), config_name='default'
 )
 
 def main(cfg:DictConfig):

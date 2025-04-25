@@ -1,6 +1,7 @@
 # Setting for running model evaluation
 
-trained_model_dir : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_04_25 # this can be the folder where the outputs for one model are present, or a folder with many trained models.
+trained_model_dir : /local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/outputs/classification_results_post_review # this can be the folder where the outputs for one model are present, or a folder with many trained models.
 aggregate_evaluation_csv_files : true # if a folder with several trained models is provided, if set to true, it will aggregate all the output csv files into one (which can be used to plot comparisons using the visualization utilities.)
 aggregation_save_dir : ${trained_model_dir}
-print_single_model_summary : false
+print_single_model_summary : true
+specific_evaluation_folder : false

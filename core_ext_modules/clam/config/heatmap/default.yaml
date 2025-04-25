@@ -2,14 +2,14 @@
 
 debug : true 
 # ####### PATHS #########
-process_list : /local/data2/iulta54/Data/BTB/patch_extraction_csv_files/BTB_for_hs2p.csv # path to the .csv file with the slide_id and file_path infromation (this is similar to the one used for feature extraction). 
+process_list : /local/d2/iulta54/Research/Data/BTB/patch_extraction_csv_files/BTB_for_hs2p.csv # path to the .csv file with the slide_id and file_path infromation (this is similar to the one used for feature extraction). 
               # This can also be a directory containing WSIs. 
-trained_model : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs/2024_05_01_npb_trainings/tumor_category_all_vit_uni_mag_20_ps_224_agg_abmil_none_lr_1E-04_sch_cosine_opt_adamW_bgl_ce_7E-01_cls_True_svm_8_t090624 # path to the folder where the model training outputs are saved (where the .pt files are located along with the hydra_config.yaml file).
-fold : 0 # which fold to pick among the ones trained.
-output_dir : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/outputs # where to save the results. The information about the model will be used to create a subfolder where the results for each slide_id will be saved (as separate folders).
+trained_model : /local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/outputs/classification_results_post_review/tumor_family_all_vit_uni_mag_20_ps_224_agg_clam_mb_small_lr_1E-04_sch_cosine_opt_adamW_bgl_ce_7E-01_cls_True_svm_8_t163908 # path to the folder where the model training outputs are saved (where the .pt files are located along with the hydra_config.yaml file).
+fold : 11 # which fold to pick among the ones trained.
+output_dir : /local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/outputs # where to save the results. The information about the model will be used to create a subfolder where the results for each slide_id will be saved (as separate folders).
 
-h5_folder : # (Optional) Folder where the patch coordinates (.h5 files) for the slide_ids in the process_list .csv file are located. If not available, the script will run patching.
-feature_folder : # (Optional) Folder where the features (.pt files) for the slide_ids in the process_list .csv file are located. If not available, the script will run feature extraction.
+h5_folder : /run/media/iulta54/Expansion/Datasets/BTB/EXTRACTED_FEATURES/wsi_level_features/clam_features_mag_x20_size_224/vit_uni/h5_files # (Optional) Folder where the patch coordinates (.h5 files) for the slide_ids in the process_list .csv file are located. If not available, the script will run patching.
+feature_folder : /run/media/iulta54/Expansion/Datasets/BTB/EXTRACTED_FEATURES/wsi_level_features/clam_features_mag_x20_size_224/vit_uni/pt_files # (Optional) Folder where the features (.pt files) for the slide_ids in the process_list .csv file are located. If not available, the script will run feature extraction.
 
 # ####### wsi infromation #########
 slide_ext : '.ndpi'
@@ -20,7 +20,7 @@ patching_arguments: # see patch extraction default.yaml
                           # patch_base_magnification=40 and patch_level=2, means that the patches are extracted at x20 magnification (patch_level=1 references to x40 magnification).
   downsample : 1 # downsample level at which to patch refered to the base_magnification.
   custom_downsample : 1 # Only used on the non fp patching version. Custom downscale when native downsample is not available (only tested w/ 2x downscale). This should be 1 or 2.'
-  patch_size : 256 # patch size
+  patch_size : 224 # patch size
   overlap : 0.5 # overlap (float). Iis used as a ratio of the patch_size. Here we keep some overlap for better visualization
 
   seg_params:
@@ -46,7 +46,7 @@ patching_arguments: # see patch extraction default.yaml
     contour_fn : four_pt
 
 feature_extraction_arguments:
-  pre_trained_model_archive : /local/data1/iulta54/Code/BTB_DEEP_LEARNING/pre_trained_feature_extractors
+  pre_trained_model_archive : /local/d2/iulta54/Research/P7_BTB_DEEP_LEARNING/pre_trained_feature_extractors
 
 # ###### heatmap settings ######
 heatmap_arguments :
