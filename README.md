@@ -2,7 +2,7 @@
 
 This repository contains the code for the preprocessing, model training and evaluation for the classification of pediatric brain tumors using multi-center digital pathology data from the Barntumörbanken dataset.
 
-[Preprint](10.48550/arXiv.2409.01330) | [Cite](#reference)
+[Paper](https://doi.org/10.1111/bpa.70029) | [Cite](#reference)
 
 **Key highlights:**
 - Evaluation of state-of-the-art histology-specific feature extractors (UNI and CONCH) on a multi-center Swedish cohort for the hierarchical classification of pediatric brain tumors in digital histopathology data.
@@ -157,4 +157,18 @@ This will create a folder in the feat_dir (../feat_dir/experiment_name/time_stam
 
 ### Visualization
 ##### Modifications to the original implementation
+
+## Reference
+If you use this work, please cite:
+
+```bibtex
+@article{tampu2025pediatric,
+  title={Pediatric brain tumor classification using digital pathology and deep learning: Evaluation of SOTA methods on a multi-center Swedish cohort},
+  author={Tampu, Iulian Emil and Nyman, Per and Spyretos, Christoforos and Blystad, Ida and Shamikh, Alia and Prochazka, Gabriela and de St{\aa}hl, Teresita D{\'\i}az and Sandgren, Johanna and Lundberg, Peter and Haj-Hosseini, Neda},
+  journal={Brain Pathology},
+  pages={e70029},
+  year={2025},
+  publisher={Wiley Online Library}
+}
+```
 
